@@ -1,0 +1,13 @@
+cmake-build*/
+build/
+tmp/
+libs/
+.idea/
+.vscode/
+toolchains/
+data/
+results/
+green/
+green_old/
+sim_data/
+SpM/
