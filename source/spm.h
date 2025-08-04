@@ -3,21 +3,16 @@
 #include "admm.h"
 #include <Eigen/Core>
 #include <cmath>
-#include "../log.h"
+#include "log.h"
+#include <fstream>
 #include <h5pp/h5pp.h>
 #include "structs.h"
+#include <nlohmann/json.hpp>
+#include <vector>
+#include "io.h"
 
 namespace spm {
-
-    using Matrix = Eigen::MatrixXd;
-    using Vector = Eigen::VectorXd;
-
     Grid generate_grid(Vector omegas, Vector domegas, int n_taus, double beta);
-
-    void save_grid(Grid & grid, std::string filename);
-    Grid load_grid(const std::string filename);
-
-
-
-    void test_spm();
+    Vector green_from_spectral(const Vector & spectral, Grid & grid);
+    void run_spm(std::string settings_path);
 }

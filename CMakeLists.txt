@@ -21,14 +21,11 @@ endif()
 ### Add all source files
 add_executable(Spectral
         source/main.cpp
-        source/spectral.cpp
-        #source/continuous_pole.cpp
-        #source/discrete_pole.cpp
-        source/helper.cpp
         source/cli.cpp
-        source/spm/spm.cpp
-        source/spm/svd.cpp
-        source/spm/admm.cpp
+        source/spm.cpp
+        source/svd.cpp
+        source/admm.cpp
+        source/io.cpp
         # ...
         )
 

@@ -1,36 +1,6 @@
 #include "spm.h"
 
 
-void spm::save_grid(Grid &grid, std::string filename) {
-    h5pp::File grid_file(filename, h5pp::FileAccess::COLLISION_FAIL);
-    grid_file.writeDataset(grid.SVs, "SVs");
-    grid_file.writeDataset(grid.U, "U");
-    grid_file.writeDataset(grid.V, "V");
-    grid_file.writeDataset(grid.taus, "taus");
-    grid_file.writeDataset(grid.omegas, "omegas");
-    grid_file.writeDataset(grid.domegas, "domegas");
-    grid_file.writeDataset(grid.n_taus, "n_taus");
-    grid_file.writeDataset(grid.n_omegas, "n_omegas");
-    grid_file.writeDataset(grid.beta, "beta");
-}
-
-spm::Grid spm::load_grid(const std::string filename) {
-    h5pp::File grid_file(filename, h5pp::FileAccess::READONLY);
-    Grid grid;
-    grid.SVs = grid_file.readDataset<Vector>("SVs");
-    grid.U   = grid_file.readDataset<Matrix>("U");
-    grid.V   = grid_file.readDataset<Matrix>("V");
-
-    grid.taus    = grid_file.readDataset<Vector>("SVs");
-    grid.omegas  = grid_file.readDataset<Vector>("SVs");
-    grid.domegas = grid_file.readDataset<Vector>("SVs");
-
-    grid.n_taus   = grid_file.readDataset<int>("SVs");
-    grid.n_omegas = grid_file.readDataset<int>("SVs");
-    grid.beta     = grid_file.readDataset<double>("SVs");
-
-    return grid;
-}
 
 
 spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double beta) {
@@ -42,31 +12,68 @@ spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double b
     Matrix kernel = Matrix::Zero(n_taus, n_omegas);
     for (int it = 0; it < n_taus; it++) {
         for (int iw = 0 ; iw < n_omegas; iw++) {
-            double val = -domegas[iw]*std::exp(-taus[it]*omegas[iw])/(1 + std::exp(-beta*omegas[iw]));
+            double val = -domegas[iw]*std::exp(beta*omegas[iw] - taus[it]*omegas[iw])/(1 + std::exp(beta*omegas[iw]));
             //logger::log->info("Tau : {}, Omega : {}, K(tau, omega) : {}", taus[it], omegas[iw], val);
             kernel(it, iw) = val;
         }
     }
     logger::log->info("Performing SVD decomposition...");
-    Eigen::BDCSVD svd(kernel, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::JacobiSVD svd(kernel, Eigen::ComputeFullU | Eigen::ComputeFullV);
     Grid grid { .SVs = svd.singularValues(), .U = svd.matrixU(), .V = svd.matrixV(),
                 .taus = taus, .omegas = omegas, .domegas = domegas,
-                .n_taus = n_taus, .n_omegas = n_omegas, .beta = beta};
+                .n_taus = n_taus, .n_omegas = n_omegas, .beta = beta,
+                .kernel = kernel };
     logger::log->info("Done");
+    //std::cout << grid.SVs << "\n\n";
+
     return grid;
 }
 
+spm::Vector spm::green_from_spectral(const Vector &spectral, Grid &grid) {
+    return grid.U*grid.SVs.asDiagonal()*grid.V.transpose()*spectral;
+}
 
-void spm::test_spm() {
-    logger::log = spdlog::stdout_color_mt("Spectral", spdlog::color_mode::always);
-    logger::log->set_level(static_cast<spdlog::level::level_enum>(0));
-    double omega_min = -1.0;
-    double omega_max = 1.0;
-    int n_omegas = 2;
-    Vector omegas = Vector::LinSpaced(n_omegas, omega_min, omega_max);
-    Vector domegas = Vector::Ones(n_omegas);
-    domegas *= (omega_max - omega_min)/(n_omegas - 1);
-    int n_taus = 2;
-    double beta = 1.0;
-    auto grid = generate_grid(omegas, domegas, n_taus, beta);
+
+
+void spm::run_spm(std::string settings_path) {
+    auto [settings, green] = io::load_settings(settings_path);
+    if (settings.debug.test_spectral) {
+        logger::log->info("Spectral debug option enabled. Loading spectral function from file...");
+        green = green_from_spectral(io::load_spectral(settings.debug.spectral_file), settings.grid);
+        io::save_green(settings.output_path, green);
+    }
+    double l_min = std::log10(settings.admm_params.lambda_min);
+    double l_max = std::log10(settings.admm_params.lambda_max);
+    int N = std::round(l_max - l_min) + 1;
+    N = std::round((settings.admm_params.lambda_res - 1)*(N - 1)) + N;
+    Vector lambdas = Vector::LinSpaced(N, l_min, l_max);
+    for (int i = 0 ; i < N; i++) {
+        lambdas(i) = pow(10, lambdas(i));
+    }
+    double lambda_opt = 0;
+    if (settings.admm_params.override_lambda_opt) {
+        lambda_opt = settings.admm_params.lambda;
+        logger::log->info("Running single sim for lambda : {}", lambda_opt);
+    } else {
+        logger::log->info("Running {} lambda sims", N);
+        Vector errors = calculate_lambda_errs(lambdas, green, settings);
+        double a = (errors(errors.size() - 1) - errors(0))/(std::log(lambdas(lambdas.size() - 1)) - std::log(lambdas(0)));
+        double div_max = std::numeric_limits<double>::min();
+        for (int i = 0 ; i < errors.size(); i++) {
+            double div = a*(std::log(lambdas(i)) - std::log(lambdas(0))) + errors(0);
+            if (div / errors(i) > div_max) {
+                div_max = div / errors(i);
+                lambda_opt = lambdas(i);
+            }
+        }
+        logger::log->info("Lambda opt: {}", lambda_opt);
+        io::save_vector(settings.output_path, lambdas, "lambdas");
+        io::save_vector(settings.output_path, errors, "errors");
+    }
+
+
+    Vector spectral = admm_minimize(green, settings, lambda_opt);
+    Vector green_rc = settings.grid.kernel*spectral;
+    io::save_spectral(settings.output_path, spectral);
+    io::save_vector(settings.output_path, green_rc, "green_rc");
 }

@@ -1,0 +1,33 @@
+{
+  "omega_min" : -36.0,
+  "omega_max" : 36.0,
+  "n_omegas" : 3000,
+
+  "green_file" : "../../data/f12h0.h5",
+
+  "input_grid_file" : "../../results/grid_0_3000_36.h5",
+  "input_omega_file" : "",
+  "output_file" : "../../results/f12h0_spec_2000.h5",
+
+
+  "save_svd" : false,
+
+  "admm" : {
+    "lambda" : 1e-6,
+    "sv_tol" : 1e-20,
+    "max_iter" : 20000,
+    "mu" : 10,
+    "mu_prime" : 10,
+    "fix_sum" : true,
+    "direct_inversion" : false,
+    "lambda_min" : 1e-10,
+    "lambda_max" : 1e-2,
+    "lambda_res" : 4,
+    "override_lambda_opt" : false
+  },
+
+  "debug" : {
+    "test_spectral" : false,
+    "spectral_file" : "../../data/spectral.h5"
+  }
+}

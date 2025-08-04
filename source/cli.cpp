@@ -3,13 +3,13 @@
 
 int cli::parse(const int argc, char *argv[]) {
     CLI::App app;
-    app.description("Quantum quadrupling worm");
+    app.description("Sparse matrix method for spectral functions");
     app.get_formatter()->column_width(90);
     app.option_defaults()->always_capture_default();
     app.allow_extras(false);
 
     /* clang-format off */
-    app.add_option("--settings",settings_path,"Path to a .json file with sim settings");
+    app.add_option("--settings",settings_path,"Path to a .json file with settings");
 
     /* clang-format on */
     CLI11_PARSE(app, argc, argv);
