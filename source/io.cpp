@@ -111,12 +111,13 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
             double omega_min = parse_setting<double>(j_settings, "omega_min").value();
             double omega_max = parse_setting<double>(j_settings, "omega_max").value();
             int n_omegas = parse_setting<int>(j_settings, "n_omegas").value();
+            double recursion_tolerance = parse_setting<double>(j_settings, "recursion_tolerance").value();
             logger::log->info("omega_min : {}, omega_max : {}, n_omegas : {}", omega_min, omega_max, n_omegas);
             assert(n_omegas > 1);
             spm::Vector omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
             double domega = (omega_max - omega_min) / (n_omegas - 1);
             spm::Vector domegas = spm::Vector::Ones(n_omegas)*domega;
-            grid = spm::generate_grid(omegas, domegas, n_taus, beta);
+            grid = spm::generate_grid(omegas, domegas, n_taus, beta, recursion_tolerance);
         }
     }
     bool save_svd = false;
@@ -148,7 +149,9 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
         auto j_debug = j_settings["debug"];
         debug.test_spectral = parse_setting<bool>(j_debug, "test_spectral").value();
         debug.spectral_file = parse_setting<std::string>(j_debug, "spectral_file").value();
+        debug.test_convergence = parse_setting<bool>(j_debug, "test_convergence").value();
     }
+
     logger::log->info("Settings loaded");
     return {spm::SPM_settings {.grid = grid, .admm_params = admm, .debug = debug, .output_path = output_path}, green};
 }

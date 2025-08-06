@@ -10,9 +10,10 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 #include "io.h"
+#include "svd.h"
 
 namespace spm {
-    Grid generate_grid(Vector omegas, Vector domegas, int n_taus, double beta);
+    Grid generate_grid(Vector omegas, Vector domegas, int n_taus, double beta, double recursion_tolerance = -1.0);
     Vector green_from_spectral(const Vector & spectral, Grid & grid);
     void run_spm(std::string settings_path);
 }

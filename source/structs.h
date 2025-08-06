@@ -34,6 +34,7 @@ namespace spm {
         bool override_lambda_opt { false };
     };
     struct DebugSettings {
+        bool test_convergence { false };
         bool test_spectral { false };
         std::string spectral_file;
     };
@@ -42,5 +43,10 @@ namespace spm {
         ADMM_params admm_params;
         DebugSettings debug;
         std::string output_path;
+    };
+    struct SVD {
+        Vector SVs;
+        Matrix U;
+        Matrix V;
     };
 }

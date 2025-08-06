@@ -25,6 +25,105 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
     return admm_minimize(green, settings, settings.admm_params.lambda);
 }
 
+spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings &settings, double lambda) {
+    auto & grid = settings.grid;
+    auto V = grid.V;
+    auto SVs = grid.SVs;
+    auto U = grid.U;
+    auto domegas = grid.domegas;
+
+    int omega_dim = V.rows();
+    int SV_dim = 0;
+    double SV_tol = std::abs(SVs(0))*settings.admm_params.sv_tol;
+    for (int i = 0 ; i < SVs.size(); i++) {
+        if (std::abs(SVs(i)) < SV_tol) {
+            break;
+        }
+        SV_dim++;
+    }
+
+    double sum = -green(0) - green(green.size() - 1);
+
+    Vector y_prime = U.transpose()*green;
+    Vector omega_prime = V.transpose()*domegas;
+
+    SVs.conservativeResize(SV_dim);
+    U.conservativeResize(Eigen::NoChange, SV_dim);
+    V.conservativeResize(Eigen::NoChange, SV_dim);
+    y_prime.conservativeResize(SV_dim);
+    omega_prime.conservativeResize(SV_dim);
+
+    //std::cout << V.transpose()*V << std::endl;
+
+    Vector x_prime = Vector::Zero(SV_dim);
+    Vector z = Vector::Zero(omega_dim);
+    Vector z_prime = Vector::Zero(SV_dim);
+    Vector u = Vector::Zero(omega_dim);
+    Vector u_prime = Vector::Zero(SV_dim);
+
+    if (settings.admm_params.direct_inversion) {
+        for (int i = 0; i < SV_dim; ++i) {
+            x_prime(i) = y_prime(i)/SVs(i);
+        }
+        //std::cout << U*SVs.asDiagonal()*V.transpose()*V*x_prime << "\n";
+        //std::cout << V*x_prime << "\n";
+        //std::cout << U*SVs.asDiagonal()*V.transpose() << "\n";
+        return V*x_prime;
+    }
+
+    Vector H_inv = Vector::Zero(SV_dim);
+    double alpha = 0;
+    for (int i = 0 ; i < SV_dim; i++) {
+        H_inv(i) = 1/(settings.admm_params.mu + settings.admm_params.mu_prime + (SVs(i) * SVs(i)));
+        alpha += omega_prime(i)*omega_prime(i)*H_inv(i);
+    }
+    alpha = 1/alpha;
+    Vector g = Vector::Zero(SV_dim);
+    Vector temp = Vector::Zero(SV_dim);
+    Vector x = Vector::Zero(omega_dim);
+    Vector errors = Vector::Zero(settings.admm_params.max_iters);
+    //Let's just try to do the simplest naive implementation
+    for (int iter = 0 ; iter < settings.admm_params.max_iters ; iter++) {
+        //First we do the x_prime update
+        g = settings.admm_params.mu_prime*(u_prime - z_prime);
+        g += settings.admm_params.mu*(V.transpose()*(u - z));
+        g -= SVs.asDiagonal()*y_prime;
+        double omegaHinvg = 0;
+        for (int i = 0 ; i < SV_dim; i++) {
+            omegaHinvg += omega_prime(i)*H_inv(i)*g(i);
+        }
+        //double chi_sqr = 0;
+        for (int i = 0 ; i < SV_dim; i++) {
+            x_prime(i) = -H_inv(i)*g(i) + settings.admm_params.fix_sum*(alpha*H_inv(i)*omega_prime(i)*(sum + omegaHinvg));
+            //chi_sqr += (SVs(i)*x_prime(i) - y_prime(i))*(SVs(i)*x_prime(i) - y_prime(i));
+        }
+        //logger::log->info("Chi_sqr : {}", chi_sqr);
+        //x = V*x_prime;
+        //double integral = x.dot(domegas);
+        //logger::log->info("Spectral integral = {}", integral);
+        //Not too bad! Then we move on to z_prime
+        double threshold = lambda/(settings.admm_params.mu_prime + (settings.admm_params.mu_prime == 0));
+        for (int i = 0 ; i < SV_dim ; i++) {
+            double val = x_prime(i) + u_prime(i);
+            double positive = val - threshold;
+            double negative = -val - threshold;
+            z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
+        }
+        temp = V*x_prime + u;
+        for (int i = 0 ; i < omega_dim ; i++) {
+            z(i) = temp(i)*(temp(i) >= 0);
+        }
+        u_prime += x_prime - z_prime;
+        u += V*x_prime - z;
+        double error = 0;
+        for (int i = 0 ; i < SV_dim ; i++) {
+            error += (y_prime(i) - SVs(i)*x_prime(i))*(y_prime(i) - SVs(i)*x_prime(i));
+        }
+        errors(iter) = error;
+    }
+    return errors;
+}
+
 spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings, double lambda) {
     auto & grid = settings.grid;
     auto V = grid.V;
@@ -175,9 +274,9 @@ spm::Vector spm::calculate_lambda_errs(const Vector &lambdas, const Vector & gre
     auto domegas = grid.domegas;
 
     int omega_dim = V.rows();
-    int SV_dim = 0;
-    double SV_tol = SVs(0)*settings.admm_params.sv_tol;
-    for (int i = 0 ; i < SVs.size(); i++) {
+    int SV_dim = 1;
+    double SV_tol = std::abs(SVs(0))*settings.admm_params.sv_tol;
+    for (int i = 1 ; i < SVs.size(); i++) {
         if (std::abs(SVs(i)) < SV_tol) {
             break;
         }
