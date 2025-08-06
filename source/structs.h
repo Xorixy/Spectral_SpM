@@ -1,10 +1,13 @@
 #pragma once
 #include <Eigen/Core>
+#include "mpreal.h"
+#include <unsupported/Eigen/MPRealSupport>
 
 namespace spm {
     using Matrix = Eigen::MatrixXd;
     using Vector = Eigen::VectorXd;
-
+    using MPMatrix = Eigen::Matrix<mpfr::mpreal, Eigen::Dynamic, Eigen::Dynamic>;
+    using MPVector = Eigen::Vector<mpfr::mpreal, Eigen::Dynamic>;
     struct Grid {
         Vector SVs;
         Matrix U;
@@ -48,5 +51,10 @@ namespace spm {
         Vector SVs;
         Matrix U;
         Matrix V;
+    };
+    struct MPSVD {
+        MPVector SVs;
+        MPMatrix U;
+        MPMatrix V;
     };
 }

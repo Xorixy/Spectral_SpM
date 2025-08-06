@@ -1,18 +1,18 @@
 {
   "omega_min" : -24.0,
   "omega_max" : 24.0,
-  "n_omegas" : 1000,
-  "recursion_tolerance" : 0,
+  "n_omegas" : 100,
+  "recursion_tolerance" : 1e-4,
+  "precision" : 20,
 
+  "green_file" : "../../data/f12h3.h5",
 
-  "green_file" : "../../data/f12h0.h5",
-
-  "input_grid_file" : "../../results/f12h0_spec_1000.h5",
+  "input_grid_file" : "",
   "input_omega_file" : "",
-  "output_file" : "../../results/test.h5",
+  "output_file" : "../../results/testmp.h5",
 
 
-  "save_svd" : false,
+  "save_svd" : true,
 
   "admm" : {
     "lambda" : 1e-6,

@@ -3,30 +3,40 @@
 
 
 
-spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double beta, double recursion_tolerance) {
+spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double beta, double recursion_tolerance, int digits) {
     assert(n_taus > 0);
     assert(beta > 0);
     logger::log->info("Creating grid...");
     Vector taus = Vector::LinSpaced(n_taus, 0, beta);
     int n_omegas = omegas.size();
     Matrix kernel = Matrix::Zero(n_taus, n_omegas);
+    MPMatrix mpkernel = MPMatrix::Zero(n_taus, n_omegas);
     for (int it = 0; it < n_taus; it++) {
         for (int iw = 0 ; iw < n_omegas; iw++) {
             double val = -domegas[iw]*std::exp(beta*omegas[iw] - taus[it]*omegas[iw])/(1 + std::exp(beta*omegas[iw]));
             //logger::log->info("Tau : {}, Omega : {}, K(tau, omega) : {}", taus[it], omegas[iw], val);
             kernel(it, iw) = val;
+            mpkernel(it, iw) = static_cast<mpfr::mpreal>(val);
         }
     }
     logger::log->info("Performing SVD decomposition (recursion tolerance : {})...", recursion_tolerance);
-    auto svd = recursive_svd(kernel, recursion_tolerance);
-    Grid grid { .SVs = svd.SVs, .U = svd.U, .V = svd.V,
-                .taus = taus, .omegas = omegas, .domegas = domegas,
-                .n_taus = n_taus, .n_omegas = n_omegas, .beta = beta,
-                .kernel = kernel };
-    logger::log->info("Done");
-    //std::cout << grid.SVs << "\n\n";
-
-    return grid;
+    if (digits == 0) {
+        auto svd = recursive_svd(kernel, recursion_tolerance);
+        Grid grid { .SVs = svd.SVs, .U = svd.U, .V = svd.V,
+                    .taus = taus, .omegas = omegas, .domegas = domegas,
+                    .n_taus = n_taus, .n_omegas = n_omegas, .beta = beta,
+                    .kernel = kernel };
+        logger::log->info("Done");
+        return grid;
+    } else {
+        auto svd = recursive_svd(mpkernel, recursion_tolerance);
+        Grid grid { .SVs = svd.SVs.cast<double>(), .U = svd.U.cast<double>(), .V = svd.V.cast<double>(),
+                    .taus = taus, .omegas = omegas, .domegas = domegas,
+                    .n_taus = n_taus, .n_omegas = n_omegas, .beta = beta,
+                    .kernel = kernel };
+        logger::log->info("Done");
+        return grid;
+    }
 }
 
 spm::Vector spm::green_from_spectral(const Vector &spectral, Grid &grid) {
@@ -36,6 +46,7 @@ spm::Vector spm::green_from_spectral(const Vector &spectral, Grid &grid) {
 
 
 void spm::run_spm(std::string settings_path) {
+    logger::log->info("Size of double is : {}", sizeof(long double));
     auto [settings, green] = io::load_settings(settings_path);
     if (settings.debug.test_spectral) {
         logger::log->info("Spectral debug option enabled. Loading spectral function from file...");

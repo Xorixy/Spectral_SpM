@@ -79,6 +79,11 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
     spm::ADMM_params admm;
     spm::DebugSettings debug;
     auto j_settings = nlohmann::json::parse(f);
+    int precision = j_settings["precision"].get<int>();
+    logger::log->info("Precision : {} digits", precision);
+    int digits = precision;
+    if (precision < 1) digits = 16;
+    mpfr::mpreal::set_default_prec(mpfr::digits2bits(digits));
     logger::log->info("Loading Greens function...");
     std::string green_file = parse_setting<std::string>(j_settings, "green_file").value();
     spm::Vector green;
@@ -106,7 +111,8 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
             omega_path.has_value() && (omega_path != "")) {
             logger::log->info("Loading omegas from file {}", omega_path.value());
             auto [omegas, domegas] = load_omegas(omega_path.value());
-            grid = spm::generate_grid(omegas, domegas, n_taus, beta);
+            double recursion_tolerance = parse_setting<double>(j_settings, "recursion_tolerance").value();
+            grid = spm::generate_grid(omegas, domegas, n_taus, beta, recursion_tolerance, precision);
         } else {
             double omega_min = parse_setting<double>(j_settings, "omega_min").value();
             double omega_max = parse_setting<double>(j_settings, "omega_max").value();
@@ -117,7 +123,7 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
             spm::Vector omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
             double domega = (omega_max - omega_min) / (n_omegas - 1);
             spm::Vector domegas = spm::Vector::Ones(n_omegas)*domega;
-            grid = spm::generate_grid(omegas, domegas, n_taus, beta, recursion_tolerance);
+            grid = spm::generate_grid(omegas, domegas, n_taus, beta, recursion_tolerance, precision);
         }
     }
     bool save_svd = false;
