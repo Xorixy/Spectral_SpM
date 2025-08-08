@@ -27,7 +27,7 @@ add_executable(Spectral
         source/admm.cpp
         source/io.cpp
         # ...
-        )
+)
 
 target_include_directories(Spectral PRIVATE source)
 
@@ -39,6 +39,7 @@ find_package(pcg-cpp            REQUIRED)
 find_package(CLI11      2.3.2   REQUIRED)
 find_package(nlohmann_json      3.11.3  REQUIRED)
 find_package(Eigen3     3.4.0   REQUIRED)
+find_package(mpfr               REQUIRED)
 
 
 ### Create a helper target that links dependencies (this target can be used to build tests and benchmarks)
@@ -51,7 +52,7 @@ target_link_libraries(spm-libs INTERFACE pcg-cpp::pcg-cpp )
 target_link_libraries(spm-libs INTERFACE CLI11::CLI11)
 target_link_libraries(spm-libs INTERFACE nlohmann_json::nlohmann_json)
 target_link_libraries(spm-libs INTERFACE Eigen3::Eigen)
-
+target_link_libraries(spm-libs INTERFACE mpfr::mpfr)
 
 
 if(SPM_ENABLE_OPENMP)
