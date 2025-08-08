@@ -65,17 +65,17 @@ def GetGreen(filename):
 
 def Compare2():
     fig_s, ax_s = plt.subplots()
-    omegas, spectral = GetSpectral("../results/f18h0_spec_norec.h5")
-    ax_s.plot(omegas, spectral, label="Direct")
-    omegas, spectral = GetSpectral("../results/f18h0_spec_rec.h5")
-    ax_s.plot(omegas, spectral, label="Recursive")
+    omegas, spectral = GetSpectral("../results/test_long.h5")
+    ax_s.plot(omegas, spectral, label="Long 100")
+    omegas, spectral = GetSpectral("../results/f12h0_spec_1000.h5")
+    ax_s.plot(omegas, spectral, label="Normal 1000")
     ax_s.legend()
 
     fig_g, ax_g = plt.subplots()
-    taus, green, green_rc = GetGreen("../results/f18h0_spec_norec.h5")
-    ax_g.plot(green_rc/green - 1, label="Direct")
-    taus, green, green_rc = GetGreen("../results/f18h0_spec_rec.h5")
-    ax_g.plot(green_rc/green - 1, label="Recursive")
+    taus, green, green_rc = GetGreen("../results/test_long.h5")
+    ax_g.plot(taus, green_rc/green - 1, label="Long 100")
+    taus, green, green_rc = GetGreen("../results/f12h0_spec_1000.h5")
+    ax_g.plot(taus, green_rc/green - 1, label="Normal 1000")
     ax_g.legend()
 def Compare():
     fig_s, ax_s = plt.subplots()
@@ -105,7 +105,7 @@ def Compare():
     ax_g.legend()
 
 
-PlotSpectralRun("../results/test.h5")
+PlotSpectralRun("../results/test_long.h5")
 #Compare2()
 plt.show()
 

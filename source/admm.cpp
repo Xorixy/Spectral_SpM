@@ -219,7 +219,7 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
 
 spm::Vector spm::admm_minimize_raw(const Vector & y_prime, const Vector & SVs, const Vector & H_inv, const Vector & omega_prime, const Matrix & V, double alpha, double lambda, double mu, double mu_prime, double sum, bool fix_sum, int max_iter) {
     auto SV_dim = SVs.size();
-    auto omega_dim = V.cols();
+    auto omega_dim = V.rows();
     Vector x_prime = Vector::Zero(SV_dim);
     Vector z = Vector::Zero(omega_dim);
     Vector z_prime = Vector::Zero(SV_dim);

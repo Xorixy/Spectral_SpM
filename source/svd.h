@@ -6,5 +6,9 @@
 #include "log.h"
 
 namespace spm {
-  SVD recursive_svd(const Eigen::MatrixXd& M, double tol = -1);
+  SVD recursive_svd(const LMatrix & A, double tol = -1);
+  SVD centrosymmetric_matrix_svd(const LMatrix & A, double tol = -1);
+  LMatrix get_j_matrix(int n);
+  Vector symmetric_linspace(int n, Scalar max, Scalar offset = 0.0);
+  void test_centrosymmetric();
 }

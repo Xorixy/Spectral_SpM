@@ -114,8 +114,15 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
             double recursion_tolerance = parse_setting<double>(j_settings, "recursion_tolerance").value();
             logger::log->info("omega_min : {}, omega_max : {}, n_omegas : {}", omega_min, omega_max, n_omegas);
             assert(n_omegas > 1);
-            spm::Vector omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
-            double domega = (omega_max - omega_min) / (n_omegas - 1);
+            spm::Vector omegas;
+            if (omega_min == -omega_max) {
+                logger::log->info("Creating symmetric omegas...");
+                omegas = spm::symmetric_linspace(n_omegas, omega_max);
+            } else {
+                logger::log->info("Creating non-symmetric omegas...");
+                omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
+            }
+            spm::Scalar domega = (omega_max - omega_min) / (n_omegas - 1);
             spm::Vector domegas = spm::Vector::Ones(n_omegas)*domega;
             grid = spm::generate_grid(omegas, domegas, n_taus, beta, recursion_tolerance);
         }

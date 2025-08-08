@@ -1,9 +1,49 @@
 #pragma once
 #include <Eigen/Core>
+#include <optional>
 
 namespace spm {
-    using Matrix = Eigen::MatrixXd;
-    using Vector = Eigen::VectorXd;
+    using Scalar = long double;
+    using LScalar = Scalar;
+    using LMatrix = Eigen::Matrix<LScalar, -1, -1>;
+    using LVector = Eigen::Vector<LScalar, -1>;
+    using Matrix = Eigen::Matrix<Scalar, -1, -1>;
+    using Vector = Eigen::Vector<Scalar, -1>;
+
+    struct CSMatrix {
+        //This struct contains all the information required to store a centrosymmetric matrix,
+        //i.e. an N x M matrix A which satisfies A_{(N - i + 1), (M - j + 1)} = A_{i,j}
+        //Letting J_k be the k x k matrix with ones on the second diagonal and zeros elsewhere, this condition can be equivalently stated as
+        //J_N A J_M = A.
+        //There are four cases of this matrix corresponding to all combinations of N/M being even/odd.
+        //Letting p = N/2 rounded down and q = M/2 rounded down we have:
+        //N odd M odd:
+        //A = | A_1         u           A_2 J_q     |
+        //    | v^T         alpha       v^T J_q     |
+        //    | J_p A_2     J_p u       J_p A_1 J_q |
+        //
+        //N even M odd:
+        //A = | A_1         u           A_2 J_q     |
+        //    | J_p A_2     J_p u       J_p A_1 J_q |
+        //
+        //N odd M even:
+        //A = | A_1         A_2 J_q     |
+        //    | v^T         v^T J_q     |
+        //    | J_p A_2     J_p A_1 J_q |
+        //
+        //N even M even:
+        //A = | A_1         A_2 J_q     |
+        //    | J_p A_2     J_p A_1 J_q |
+        //
+        //where A_{1,2} are p x q matrices, u is a p vector, v is a q vector and alpha is a scalar.
+        //Note that all combinations contain A_{1,2} and only odd ones contain u/v/alpha.
+
+        Matrix A_1;
+        Matrix A_2;
+        std::optional<Vector> u;
+        std::optional<Vector> v;
+        std::optional<Scalar> alpha;
+    };
 
     struct Grid {
         Vector SVs;
@@ -45,8 +85,8 @@ namespace spm {
         std::string output_path;
     };
     struct SVD {
-        Vector SVs;
-        Matrix U;
-        Matrix V;
+        LVector SVs;
+        LMatrix U;
+        LMatrix V;
     };
 }

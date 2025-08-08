@@ -7,19 +7,34 @@ spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double b
     assert(n_taus > 0);
     assert(beta > 0);
     logger::log->info("Creating grid...");
-    Vector taus = Vector::LinSpaced(n_taus, 0, beta);
+    bool centrosymmetric = true;
+    for (int i = 0; i < omegas.size(); i++) {
+        if (omegas(i) != -omegas(omegas.size() - i - 1)) {
+            centrosymmetric = false;
+            break;
+        }
+    }
+    logger::log->info("Centrosymmetric : {}", centrosymmetric);
+    Vector taus = symmetric_linspace(n_taus, static_cast<Scalar>(beta)/2, static_cast<Scalar>(beta)/2);
     int n_omegas = omegas.size();
     Matrix kernel = Matrix::Zero(n_taus, n_omegas);
     for (int it = 0; it < n_taus; it++) {
         for (int iw = 0 ; iw < n_omegas; iw++) {
-            double val = -domegas[iw]*std::exp(beta*omegas[iw] - taus[it]*omegas[iw])/(1 + std::exp(beta*omegas[iw]));
+            Scalar val = -domegas[iw]*std::exp(static_cast<Scalar>(beta)*omegas[iw] - taus[it]*omegas[iw])/(1 + std::exp(static_cast<Scalar>(beta)*omegas[iw]));
             //logger::log->info("Tau : {}, Omega : {}, K(tau, omega) : {}", taus[it], omegas[iw], val);
             kernel(it, iw) = val;
         }
     }
-    logger::log->info("Performing SVD decomposition (recursion tolerance : {})...", recursion_tolerance);
-    auto svd = recursive_svd(kernel, recursion_tolerance);
-    Grid grid { .SVs = svd.SVs, .U = svd.U, .V = svd.V,
+    SVD svd;
+    if (centrosymmetric) {
+
+
+
+    } else {
+        logger::log->info("Performing direct SVD decomposition (recursion tolerance : {})...", recursion_tolerance);
+        svd = recursive_svd(kernel.cast<LScalar>(), recursion_tolerance);
+    }
+    Grid grid { .SVs = svd.SVs.cast<Scalar>(), .U = svd.U.cast<Scalar>(), .V = svd.V.cast<Scalar>(),
                 .taus = taus, .omegas = omegas, .domegas = domegas,
                 .n_taus = n_taus, .n_omegas = n_omegas, .beta = beta,
                 .kernel = kernel };
@@ -35,7 +50,10 @@ spm::Vector spm::green_from_spectral(const Vector &spectral, Grid &grid) {
 
 
 
+
 void spm::run_spm(std::string settings_path) {
+    test_centrosymmetric();
+    return;
     auto [settings, green] = io::load_settings(settings_path);
     if (settings.debug.test_spectral) {
         logger::log->info("Spectral debug option enabled. Loading spectral function from file...");
