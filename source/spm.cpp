@@ -15,7 +15,8 @@ spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double b
         }
     }
     logger::log->info("Centrosymmetric : {}", centrosymmetric);
-    Vector taus = symmetric_linspace(n_taus, static_cast<Scalar>(beta)/2, static_cast<Scalar>(beta)/2);
+    //Vector taus = symmetric_linspace(n_taus, static_cast<Scalar>(beta)/2, static_cast<Scalar>(beta)/2);
+    Vector taus = Vector::LinSpaced(n_taus, 0, beta);
     int n_omegas = omegas.size();
     Matrix kernel = Matrix::Zero(n_taus, n_omegas);
     for (int it = 0; it < n_taus; it++) {
@@ -32,7 +33,7 @@ spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double b
 
     } else {
         logger::log->info("Performing direct SVD decomposition (recursion tolerance : {})...", recursion_tolerance);
-        svd = recursive_svd(kernel.cast<LScalar>(), recursion_tolerance);
+        //svd = recursive_svd(kernel.cast<LScalar>(), recursion_tolerance);
     }
     Grid grid { .SVs = svd.SVs.cast<Scalar>(), .U = svd.U.cast<Scalar>(), .V = svd.V.cast<Scalar>(),
                 .taus = taus, .omegas = omegas, .domegas = domegas,

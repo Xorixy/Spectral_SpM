@@ -2,7 +2,7 @@
   "omega_min" : -24.0,
   "omega_max" : 24.0,
   "n_omegas" : 100,
-  "recursion_tolerance" : 1e-0,
+  "recursion_tolerance" : -1,
 
 
   "green_file" : "../../data/f12h0.h5",
@@ -11,7 +11,7 @@
   "input_omega_file" : "",
   "output_file" : "../../results/test_long.h5",
 
-
+  "precision_digits" : 100,
   "save_svd" : false,
 
   "admm" : {

@@ -4,11 +4,13 @@
 #include <iostream>
 #include "structs.h"
 #include "log.h"
+#include <chrono>
+#include <omp.h>
 
 namespace spm {
-  SVD recursive_svd(const LMatrix & A, double tol = -1);
+  SVD recursive_svd(const PMatrix & A, double tol = -1);
   SVD centrosymmetric_matrix_svd(const LMatrix & A, double tol = -1);
-  LMatrix get_j_matrix(int n);
-  Vector symmetric_linspace(int n, Scalar max, Scalar offset = 0.0);
+  PMatrix get_j_matrix(int n);
+  PVector symmetric_linspace(int n, PScalar max, PScalar offset = 0.0);
   void test_centrosymmetric();
 }

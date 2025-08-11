@@ -1,14 +1,20 @@
 #pragma once
 #include <Eigen/Core>
 #include <optional>
+#include "mpreal.h"
+#include <unsupported/Eigen/MPRealSupport>
+
 
 namespace spm {
-    using Scalar = long double;
+    using Scalar = double;
     using LScalar = Scalar;
     using LMatrix = Eigen::Matrix<LScalar, -1, -1>;
     using LVector = Eigen::Vector<LScalar, -1>;
     using Matrix = Eigen::Matrix<Scalar, -1, -1>;
     using Vector = Eigen::Vector<Scalar, -1>;
+    using PScalar = mpfr::mpreal;
+    using PMatrix = Eigen::Matrix<PScalar, -1, -1>;
+    using PVector = Eigen::Vector<PScalar, -1>;
 
     struct CSMatrix {
         //This struct contains all the information required to store a centrosymmetric matrix,
@@ -85,8 +91,8 @@ namespace spm {
         std::string output_path;
     };
     struct SVD {
-        LVector SVs;
-        LMatrix U;
-        LMatrix V;
+        PVector SVs;
+        PMatrix U;
+        PMatrix V;
     };
 }

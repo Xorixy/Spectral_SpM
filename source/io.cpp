@@ -117,7 +117,8 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
             spm::Vector omegas;
             if (omega_min == -omega_max) {
                 logger::log->info("Creating symmetric omegas...");
-                omegas = spm::symmetric_linspace(n_omegas, omega_max);
+                //omegas = spm::symmetric_linspace(n_omegas, omega_max);
+                omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
             } else {
                 logger::log->info("Creating non-symmetric omegas...");
                 omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
