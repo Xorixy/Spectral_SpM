@@ -1,3 +1,21 @@
+/*
+This program uses the sparse matrix method of calculating the real-frequency spectral functions from imaginary-time Green's functions
+Copyright (C) 2025 Alexandru Golic (soricib@gmail.com)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include "svd.h"
 
 spm::PMatrix spm::get_j_matrix(int n) {
@@ -29,7 +47,8 @@ spm::PVector spm::symmetric_linspace(int n, PScalar max, PScalar offset) {
 
 
 
-void spm::test_centrosymmetric() {
+
+spm::PVector spm::test_centrosymmetric() {
     /*
     Eigen::Matrix3d MX;
     MX << 1,2,3,4,5,6,7,8,9;
@@ -53,8 +72,8 @@ void spm::test_centrosymmetric() {
     PScalar omega_max = 1.56;
     PScalar sqrt2 = mpfr::sqrt(static_cast<PScalar>(2));
     PScalar sqrt2inv = static_cast<PScalar>(1)/sqrt2;
-    int N = 2001;
-    int M = 1001;
+    int N = 101;
+    int M = 101;
     int p = N/2;
     int a = N % 2;
     int q = M/2;
@@ -122,21 +141,21 @@ void spm::test_centrosymmetric() {
     //std::cout << (A - U0*B*V0.transpose()) << "\n\n";
     //std::cout << B1 << "\n\n";
     //std::cout << B2 << "\n\n";
-    SVD svd_1, svd_2;
+    PSVD svd_1, svd_2;
     logger::log->info("Starting both SVDs...");
 
 
     #pragma omp parallel num_threads(2)
     {
-        mpfr::mpreal::set_default_prec(mpfr::digits2bits(10));
+        mpfr::mpreal::set_default_prec(mpfr::digits2bits(100));
         int tid = omp_get_thread_num();
         if (tid == 0) {
             logger::log->info("Starting SVD decomposition for upper block");
-            svd_1 = recursive_svd(B1, tol);
+            svd_1 = recursive_svd_mp(B1, tol);
             logger::log->info("Upper block done");
         } else if (tid == 1) {
             logger::log->info("Starting SVD decomposition for lower block");
-            svd_2 = recursive_svd(B2, tol);
+            svd_2 = recursive_svd_mp(B2, tol);
             logger::log->info("Lower block done");
         }
     }
@@ -209,6 +228,7 @@ void spm::test_centrosymmetric() {
     //std::cout << sigma_prime << "\n\n";
     int L = std::min(N, M);
     std::vector<std::pair<PScalar, int>> data(L);
+    PVector SVs = PVector::Zero(L);
     for (int i = 0; i < L; i++) {
         data[i] = {sigma_prime(i, i), i};
         //std::cout << data[i].first << ", " << data[i].second << std::endl;
@@ -217,6 +237,7 @@ void spm::test_centrosymmetric() {
     std::reverse(data.begin(), data.end());
     for (int i = 0; i < L; i++) {
         //std::cout << data[i].first << ", " << data[i].second << std::endl;
+        SVs(i) = data[i].first;
     }
     logger::log->info("Done.");
     logger::log->info("Constructing sort matrix transforms...");
@@ -252,17 +273,59 @@ void spm::test_centrosymmetric() {
     logger::log->info("Calculating sigma...");
     //std::cout << (A - U*sigma*V.transpose()) << "\n\n";
     for (int i = 0 ; i < L ; i++) {
-        //std::cout << data[i].first << "\n";
+        std::cout << SVs(i) << "\n";
     }
 
     const auto finish{std::chrono::steady_clock::now()};
     const std::chrono::duration<double> elapsed_seconds{finish - start};
     logger::log->info("Done.");
     logger::log->info("Elapsed : {}",elapsed_seconds.count());
+    h5pp::File file("../../results/xtest.h5", h5pp::FileAccess::READWRITE);
+    file.writeDataset(SVs, "SVs");
+    return SVs;
 }
 
+spm::SVD spm::recursive_svd(const Matrix & A, double tol) {
+    if (tol > 1.0) {
+        throw std::invalid_argument("tolerance must be less than 1.0 for recursive_svd");
+    }
+    logger::log->info("Recursive SVD step for matrix with sizes {} X {}", A.rows(), A.cols());
+    auto svd = Eigen::BDCSVD(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    int l = svd.singularValues().size();
+    logger::log->info("SVD decomposition done. Number of SVs : {}", svd.singularValues().size());
+    int n = svd.matrixU().cols();
+    int m = svd.matrixV().cols();
+    auto lambda_max = svd.singularValues()(0);
+    int p = -1;
+    for (int i = 1; i < svd.singularValues().size(); ++i) {
+        if (svd.singularValues()(i) < lambda_max*tol) {
+            p = i;
+            break;
+        }
+    }
+    if (p == -1) {
+        logger::log->info("All SVs within tolerance, returning full SVD");
+        return {svd.singularValues(), svd.matrixU(), svd.matrixV()};
+    }
+    logger::log->info("Singular values within tolerance: {}", p);
+    logger::log->info("Running recursive step...");
+    Matrix S_prime = svd.matrixU().transpose()*A*svd.matrixV();
+    logger::log->info("Matrix S' size : {}, {}", S_prime.rows(), S_prime.cols());
+    Matrix X = S_prime.block(p, p, (l - p), (l - p));
+    logger::log->info("Matrix X size : {}, {}", X.rows(), X.cols());
+    SVD svd_X = recursive_svd(X, tol);
+    Vector SVs = svd.singularValues();
+    Matrix U_prime = Matrix::Identity(n, n);
+    U_prime.block(p, p, l-p, l-p) = svd_X.U;
+    Matrix V_prime = Matrix::Identity(m, m);
+    V_prime.block(p, p, l-p, l-p) = svd_X.V;
+    SVs.tail(l-p) = svd_X.SVs;
+    Matrix U = svd.matrixU()*U_prime;
+    Matrix V = svd.matrixV()*V_prime;
+    return {SVs, U, V};
+}
 
-spm::SVD spm::recursive_svd(const PMatrix & A, double tol) {
+spm::PSVD spm::recursive_svd_mp(const PMatrix & A, double tol) {
     if (tol > 1.0) {
         throw std::invalid_argument("tolerance must be less than 1.0 for recursive_svd");
     }
@@ -290,7 +353,7 @@ spm::SVD spm::recursive_svd(const PMatrix & A, double tol) {
     logger::log->info("Matrix S' size : {}, {}", S_prime.rows(), S_prime.cols());
     PMatrix X = S_prime.block(p, p, (l - p), (l - p));
     logger::log->info("Matrix X size : {}, {}", X.rows(), X.cols());
-    SVD svd_X = recursive_svd(X, tol);
+    PSVD svd_X = recursive_svd_mp(X, tol);
     PVector SVs = svd.singularValues();
     PMatrix U_prime = PMatrix::Identity(n, n);
     U_prime.block(p, p, l-p, l-p) = svd_X.U;
@@ -301,4 +364,5 @@ spm::SVD spm::recursive_svd(const PMatrix & A, double tol) {
     PMatrix V = svd.matrixV()*V_prime;
     return {SVs, U, V};
 }
+
 

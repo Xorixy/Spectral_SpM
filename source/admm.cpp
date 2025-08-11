@@ -1,3 +1,21 @@
+/*
+This program uses the sparse matrix method of calculating the real-frequency spectral functions from imaginary-time Green's functions
+Copyright (C) 2025 Alexandru Golic (soricib@gmail.com)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include "admm.h"
 
 using Matrix = Eigen::MatrixXd;
@@ -215,6 +233,102 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
         u += V*x_prime - z;
     }
     return V*x_prime;
+}
+
+spm::Vector spm::admm_minimize_mp(const PVector &green, const PGrid & grid, const SPM_settings &settings) {
+    return admm_minimize_mp(green, grid, settings, static_cast<PScalar>(settings.admm_params.lambda));
+}
+
+spm::Vector spm::admm_minimize_mp(const PVector &green, const PGrid & grid, const SPM_settings &settings, PScalar lambda) {
+    auto V = grid.V;
+    auto SVs = grid.SVs;
+    auto U = grid.U;
+    auto domegas = grid.domegas;
+
+    int omega_dim = V.rows();
+    int SV_dim = 0;
+    PScalar SV_tol = SVs(0)*static_cast<PScalar>(settings.admm_params.sv_tol);
+    for(int i = 0; i < SVs.size(); i++) {
+        if(mpfr::abs(SVs(i)) < SV_tol) { break; }
+        SV_dim++;
+    }
+
+    const auto sum = -green(0) - green(green.size() - 1);
+
+    PVector y_prime = U.transpose()*green;
+    PVector omega_prime = V.transpose()*domegas;
+
+    SVs.conservativeResize(SV_dim);
+    U.conservativeResize(Eigen::NoChange, SV_dim);
+    V.conservativeResize(Eigen::NoChange, SV_dim);
+    y_prime.conservativeResize(SV_dim);
+    omega_prime.conservativeResize(SV_dim);
+
+    //std::cout << V.transpose()*V << std::endl;
+
+    PVector x_prime = PVector::Zero(SV_dim);
+    PVector z = PVector::Zero(omega_dim);
+    PVector z_prime = PVector::Zero(SV_dim);
+    PVector u = PVector::Zero(omega_dim);
+    PVector u_prime = PVector::Zero(SV_dim);
+
+    if (settings.admm_params.direct_inversion) {
+        for (int i = 0; i < SV_dim; ++i) {
+            x_prime(i) = y_prime(i)/SVs(i);
+        }
+        //std::cout << U*SVs.asDiagonal()*V.transpose()*V*x_prime << "\n";
+        //std::cout << V*x_prime << "\n";
+        //std::cout << U*SVs.asDiagonal()*V.transpose() << "\n";
+        PVector green_direct = V*x_prime;
+        return green_direct.cast<Scalar>();
+    }
+
+    PVector H_inv = PVector::Zero(SV_dim);
+    PScalar alpha = 0;
+    for (int i = 0 ; i < SV_dim; i++) {
+        H_inv(i) = 1/(settings.admm_params.mu + settings.admm_params.mu_prime + (SVs(i) * SVs(i)));
+        alpha += omega_prime(i)*omega_prime(i)*H_inv(i);
+    }
+    alpha = 1/alpha;
+    PVector g = PVector::Zero(SV_dim);
+    PVector temp = PVector::Zero(SV_dim);
+    PVector x = PVector::Zero(omega_dim);
+    //Let's just try to do the simplest naive implementation
+    for (int iter = 0 ; iter < settings.admm_params.max_iters ; iter++) {
+        //First we do the x_prime update
+        g = settings.admm_params.mu_prime*(u_prime - z_prime);
+        g += settings.admm_params.mu*(V.transpose()*(u - z));
+        g -= SVs.asDiagonal()*y_prime;
+        PScalar omegaHinvg = 0;
+        for (int i = 0 ; i < SV_dim; i++) {
+            omegaHinvg += omega_prime(i)*H_inv(i)*g(i);
+        }
+        //double chi_sqr = 0;
+        for (int i = 0 ; i < SV_dim; i++) {
+            x_prime(i) = -H_inv(i)*g(i) + settings.admm_params.fix_sum*(alpha*H_inv(i)*omega_prime(i)*(sum + omegaHinvg));
+            //chi_sqr += (SVs(i)*x_prime(i) - y_prime(i))*(SVs(i)*x_prime(i) - y_prime(i));
+        }
+        //logger::log->info("Chi_sqr : {}", chi_sqr);
+        //x = V*x_prime;
+        //double integral = x.dot(domegas);
+        //logger::log->info("Spectral integral = {}", integral);
+        //Not too bad! Then we move on to z_prime
+        PScalar threshold = lambda/(settings.admm_params.mu_prime + (settings.admm_params.mu_prime == 0));
+        for (int i = 0 ; i < SV_dim ; i++) {
+            PScalar val = x_prime(i) + u_prime(i);
+            PScalar positive = val - threshold;
+            PScalar negative = -val - threshold;
+            z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
+        }
+        temp = V*x_prime + u;
+        for (int i = 0 ; i < omega_dim ; i++) {
+            z(i) = temp(i)*(temp(i) >= 0);
+        }
+        u_prime += x_prime - z_prime;
+        u += V*x_prime - z;
+    }
+    PVector green_return = V*x_prime;
+    return green_return.cast<Scalar>();
 }
 
 spm::Vector spm::admm_minimize_raw(const Vector & y_prime, const Vector & SVs, const Vector & H_inv, const Vector & omega_prime, const Matrix & V, double alpha, double lambda, double mu, double mu_prime, double sum, bool fix_sum, int max_iter) {

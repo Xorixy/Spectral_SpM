@@ -1,3 +1,21 @@
+/*
+This program uses the sparse matrix method of calculating the real-frequency spectral functions from imaginary-time Green's functions
+Copyright (C) 2025 Alexandru Golic (soricib@gmail.com)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #include "io.h"
 
 void io::save_grid(spm::Grid &grid, h5pp::File grid_file, bool save_svd) {
@@ -79,6 +97,11 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
     spm::ADMM_params admm;
     spm::DebugSettings debug;
     auto j_settings = nlohmann::json::parse(f);
+    bool centrosymmetric = false;
+    if (std::optional<bool> cs = parse_setting<bool>(j_settings, "centrosymmetric");
+        cs.has_value()) {
+        centrosymmetric = cs.value();
+    }
     logger::log->info("Loading Greens function...");
     std::string green_file = parse_setting<std::string>(j_settings, "green_file").value();
     spm::Vector green;
@@ -114,18 +137,10 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
             double recursion_tolerance = parse_setting<double>(j_settings, "recursion_tolerance").value();
             logger::log->info("omega_min : {}, omega_max : {}, n_omegas : {}", omega_min, omega_max, n_omegas);
             assert(n_omegas > 1);
-            spm::Vector omegas;
-            if (omega_min == -omega_max) {
-                logger::log->info("Creating symmetric omegas...");
-                //omegas = spm::symmetric_linspace(n_omegas, omega_max);
-                omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
-            } else {
-                logger::log->info("Creating non-symmetric omegas...");
-                omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
-            }
+            spm::Vector omegas = spm::Vector::LinSpaced(n_omegas, omega_min, omega_max);
             spm::Scalar domega = (omega_max - omega_min) / (n_omegas - 1);
             spm::Vector domegas = spm::Vector::Ones(n_omegas)*domega;
-            grid = spm::generate_grid(omegas, domegas, n_taus, beta, recursion_tolerance);
+            grid = spm::generate_grid(omegas, domegas, n_taus, beta, recursion_tolerance, centrosymmetric);
         }
     }
     bool save_svd = false;
