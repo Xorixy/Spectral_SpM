@@ -1,30 +1,30 @@
 {
-  "omega_min" : -24.0,
-  "omega_max" : 24.0,
-  "n_omegas" : 1001,
+  "omega_min" : -60.0,
+  "omega_max" : 60.0,
+  "n_omegas" : 1000,
   "recursion_tolerance" : -1,
 
 
-  "green_file" : "../../data/f12h3.h5",
+  "green_file" : "../../data/f16h1.h5",
 
   "input_grid_file" : "",
   "input_omega_file" : "",
-  "output_file" : "../../results/xtest_3.h5",
+  "output_file" : "../../results/xxxtest161.h5",
 
 
-  "save_svd" : true,
+  "save_svd" : false,
 
   "admm" : {
-    "lambda" : 1e-6,
+    "lambda" : 1e-1,
     "sv_tol" : 1e-70,
-    "max_iter" : 20000,
-    "mu" : 10,
-    "mu_prime" : 10,
+    "max_iter" : 10000,
+    "mu" : 100,
+    "mu_prime" : 100,
     "fix_sum" : true,
     "direct_inversion" : false,
-    "lambda_min" : 1e-10,
+    "lambda_min" : 1e-6,
     "lambda_max" : 1e-0,
-    "lambda_res" : 4,
+    "lambda_res" : 2,
     "override_lambda_opt" : false
   },
 
@@ -35,5 +35,5 @@
   },
 
   "precision_digits" : 100,
-  "centrosymmetric" : false
+  "centrosymmetric" : true
 }

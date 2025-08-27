@@ -28,8 +28,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace spm {
   SVD recursive_svd(const Matrix & A, double tol = -1);
-  PSVD recursive_svd_mp(const PMatrix & A, double tol = -1);
-  PMatrix get_j_matrix(int n);
-  PVector symmetric_linspace(int n, PScalar max, PScalar offset = 0.0);
-  PVector test_centrosymmetric();
+  PSVD recursive_svd_mp(const Matrix & A, double tol = -1);
+  Matrix get_j_matrix(int n);
+  Vector symmetric_linspace(int n, Scalar max, Scalar offset = 0.0);
+  Vector test_centrosymmetric();
 }

@@ -3,16 +3,25 @@ import matplotlib.pyplot as plt
 import h5py as h5
 
 
+def ReconstructGreen(spectral, omegas, domegas, taus):
+    green = np.zeros(len(taus))
+    beta = taus[-1]
+    for i in range(len(taus)):
+        green[i] = -np.sum(domegas*spectral*np.exp(-taus[i]*omegas)/(1 + np.exp(-beta*omegas)))
+    return green
+
 def PlotSpectralRun(filename):
     f = h5.File(filename, 'r')
     print(f.keys())
     omegas = f["omegas"][()]
+    domegas = f["domegas"][()]
     spectral = f["spectral"][()]
     taus = f["taus"][()]
     green = f["green"][()]
     green_rc = f["green_rc"][()]
     beta = f["beta"][()]
     #green_rc = SpectralGreen(spectral, omegas, taus, beta)
+    print(len(taus))
 
     plt.plot(omegas, spectral, label="RC")
     plt.legend()
@@ -21,9 +30,11 @@ def PlotSpectralRun(filename):
     plt.figure()
     plt.plot(taus, green, label="Green sim")
     plt.plot(taus, green_rc, label="Green RC")
+    green_p = ReconstructGreen(spectral, omegas, domegas, taus)
+    plt.plot(taus, green_p, '--', label="Green Python")
     plt.legend()
     plt.figure()
-    plt.plot(taus, green_rc/green - 1)
+    plt.plot(taus, green_p/green - 1)
 
     if "lambdas" in f and "errors" in f:
         fig_l, ax_l = plt.subplots()
@@ -36,7 +47,7 @@ def PlotSpectralRun(filename):
         ax_l.plot(lambdas, div*np.max(lin)/np.max(div))
         ax_l.set_xscale('log')
 
-
+    print(np.sum(domegas*spectral))
     plt.show()
 
 def SpectralGreen(spectral, omegas, taus, beta):
@@ -105,7 +116,7 @@ def Compare():
     ax_g.legend()
 
 
-PlotSpectralRun("../results/f12h3_spec_500.h5")
+PlotSpectralRun("../results/f16h0_spec_1000.h5")
 #Compare2()
 plt.show()
 

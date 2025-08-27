@@ -23,9 +23,9 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     mpfr::mpreal::set_default_prec(mpfr::digits2bits(100));
     const auto start{std::chrono::steady_clock::now()};
     double tol = -1;
-    PScalar beta = static_cast<PScalar>(beta_d);
-    PScalar sqrt2 = mpfr::sqrt(static_cast<PScalar>(2));
-    PScalar sqrt2inv = static_cast<PScalar>(1)/sqrt2;
+    Scalar beta = static_cast<Scalar>(beta_d);
+    Scalar sqrt2 = mpfr::sqrt(static_cast<Scalar>(2));
+    Scalar sqrt2inv = static_cast<Scalar>(1)/sqrt2;
     int N = n_taus;
     int M = omegas_d.size();
     int p = N/2;
@@ -33,19 +33,13 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     int q = M/2;
     int b = M % 2;
     logger::log->info("Generating block kernel...");
-    PVector taus = symmetric_linspace(N, beta/2, beta/2);
-    PVector omegas = symmetric_linspace(M, static_cast<PScalar>(omegas_d(omegas_d.size() - 1)));
-    PMatrix A = PMatrix::Zero(N, M);
-    for (int i = 0; i < N; i++) {
-        for (int j = 0 ; j < M ; j++) {
-            A(i, j) = -mpfr::exp(-taus(i)*omegas(j))/(1 + mpfr::exp(-beta*omegas(j)));
-        }
-    }
-    PMatrix Ip = PMatrix::Identity(p, p);
-    PMatrix Iq = PMatrix::Identity(q, q);
-    PMatrix Jp = get_j_matrix(p);
-    PMatrix Jq = get_j_matrix(q);
-    PMatrix U0 = PMatrix::Zero(N, N);
+    Vector taus = symmetric_linspace(N, beta/2, beta/2);
+    Vector omegas = symmetric_linspace(M, static_cast<Scalar>(omegas_d(omegas_d.size() - 1)));
+    Matrix Ip = Matrix::Identity(p, p);
+    Matrix Iq = Matrix::Identity(q, q);
+    Matrix Jp = get_j_matrix(p);
+    Matrix Jq = get_j_matrix(q);
+    Matrix U0 = Matrix::Zero(N, N);
     U0.block(0, 0, p, p) = Ip;
     U0.block(0, p+a, p, p) = Ip;
     U0.block(p+a, 0, p, p) = Jp;
@@ -54,7 +48,7 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
         U0(p+a-1, p+a-1) = sqrt2;
     }
     U0 *= sqrt2inv;
-    PMatrix V0 = PMatrix::Zero(M, M);
+    Matrix V0 = Matrix::Zero(M, M);
     V0.block(0, 0, q, q) = Iq;
     V0.block(0, q+b, q, q) = Iq;
     V0.block(q+b,0,q,q) = Jq;
@@ -67,12 +61,12 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     //std::cout << U0 << "\n\n";
     //std::cout << V0 << "\n\n";
     //std::cout << A_block << "\n\n";
-    PMatrix B1 = PMatrix::Zero(p+a, q+b);
-    PMatrix B2 = PMatrix::Zero(p, q);
+    Matrix B1 = Matrix::Zero(p+a, q+b);
+    Matrix B2 = Matrix::Zero(p, q);
     for (int i = 0 ; i < p ; i++) {
         for (int j = 0 ; j < q ; j++) {
-            B1(i,j) = mpfr::sinh(taus(i)*omegas(j))*mpfr::tanh(omegas(j)*beta/2) - mpfr::cosh(taus(i)*omegas(j));
-            B2(i, j) = mpfr::sinh(taus(i)*omegas(j)) - mpfr::cosh(taus(i)*omegas(j))*mpfr::tanh(omegas(j)*beta/2);
+            B1(i,j) = domegas(j)*(mpfr::sinh(taus(i)*omegas(j))*mpfr::tanh(omegas(j)*beta/2) - mpfr::cosh(taus(i)*omegas(j)));
+            B2(i, j) = domegas(j)*(mpfr::sinh(taus(i)*omegas(j)) - mpfr::cosh(taus(i)*omegas(j))*mpfr::tanh(omegas(j)*beta/2));
         }
     }
     if (a == 1) {
@@ -86,9 +80,9 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
         }
     }
     if (a == 1 && b == 1) {
-        B1(p+a-1, q+b-1) = static_cast<PScalar>(-0.5);
+        B1(p+a-1, q+b-1) = static_cast<Scalar>(-0.5);
     }
-    PMatrix B = PMatrix::Zero(N, M);
+    Matrix B = Matrix::Zero(N, M);
     B.block(0, 0, p+a, q+b) = B1;
     B.block(p+a, q+b, p, q) = B2;
     //std::cout << A << "\n\n";
@@ -119,7 +113,7 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     logger::log->info("Combining SVDs...");
     //std::cout << "B1 - B1 svd :\n" << "\n";
     //std::cout << (B1 - svd_1.U * svd_1.SVs.asDiagonal().toDenseMatrix() * svd_1.V.transpose()) << "\n\n";
-    PMatrix sigma_tilde = PMatrix::Zero(N, M);
+    Matrix sigma_tilde = Matrix::Zero(N, M);
     //std::cout << sigma_tilde << "\n\n";
     //std::cout << svd_1.SVs.asDiagonal().toDenseMatrix() << "\n\n";
     //std::cout << svd_2.SVs.asDiagonal().toDenseMatrix() << "\n\n";
@@ -129,10 +123,10 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     sigma_tilde.block(0, 0, lc, lc) = svd_1.SVs.asDiagonal().toDenseMatrix();
     sigma_tilde.block(p+a, q+b, l, l) = svd_2.SVs.asDiagonal().toDenseMatrix();
     //std::cout << sigma_tilde << "\n\n";
-    PMatrix U_c = PMatrix::Zero(N, N);
+    Matrix U_c = Matrix::Zero(N, N);
     U_c.block(0, 0, p+a, p+a) = svd_1.U;
     U_c.block(p+a, p+a, p, p) = svd_2.U;
-    PMatrix V_c = PMatrix::Zero(M, M);
+    Matrix V_c = Matrix::Zero(M, M);
     V_c.block(0, 0, q+b, q+b) = svd_1.V;
     V_c.block(q+b, q+b, q, q) = svd_2.V;
 
@@ -168,13 +162,13 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     //std::cout << U_p2.toDenseMatrix() << "\n\n";
     //std::cout << V_p << "\n\n";
     //std::cout << V_p2.toDenseMatrix() << "\n\n";
-    PMatrix sigma_prime = U_p.transpose()*sigma_tilde*V_p;
+    Matrix sigma_prime = U_p.transpose()*sigma_tilde*V_p;
     logger::log->info("Done.");
     logger::log->info("Sorting SVs...");
     //std::cout << sigma_prime << "\n\n";
     int L = std::min(N, M);
-    std::vector<std::pair<PScalar, int>> data(L);
-    PVector SVs = PVector::Zero(L);
+    std::vector<std::pair<Scalar, int>> data(L);
+    Vector SVs = Vector::Zero(L);
     for (int i = 0; i < L; i++) {
         data[i] = {sigma_prime(i, i), i};
         //std::cout << data[i].first << ", " << data[i].second << std::endl;
@@ -187,7 +181,7 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     }
     logger::log->info("Done.");
     logger::log->info("Constructing sort matrix transforms...");
-    PMatrix sort = PMatrix::Zero(L, L);
+    Matrix sort = Matrix::Zero(L, L);
     Eigen::VectorXi sort_U = Eigen::VectorXi::LinSpaced(N, 0, N-1);
     Eigen::VectorXi sort_V = Eigen::VectorXi::LinSpaced(M, 0, M-1);
     for (int i = 0; i < L; i++) {
@@ -201,12 +195,12 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     V_s.indices() = sort_V;
     logger::log->info("Done.");
     logger::log->info("Finalizing SVD...");
-    PMatrix sigma = U_s.transpose()*sigma_prime*V_s;
-    PMatrix U = U0*U_c*U_p*U_s;
-    PMatrix V = V0*V_c*V_p*V_s;
+    Matrix U = U0*U_c*U_p*U_s;
+    Matrix V = V0*V_c*V_p*V_s;
+    Matrix kernel = U*SVs.asDiagonal()*V.transpose();
     Grid grid = { .SVs = SVs.cast<Scalar>(), .U = U.cast<Scalar>(), .V = V.cast<Scalar>(),
                  .taus = taus.cast<Scalar>(), .omegas = omegas_d, .domegas = domegas,
-                 .n_taus = n_taus, .n_omegas = static_cast<int>(omegas_d.size()), .beta = beta_d, .kernel = A.cast<Scalar>()};
+                 .n_taus = n_taus, .n_omegas = static_cast<int>(omegas_d.size()), .beta = beta_d, .kernel = kernel.cast<Scalar>()};
 
     return grid;
 }
@@ -225,16 +219,15 @@ spm::Grid spm::generate_grid(Vector omegas, Vector domegas, int n_taus, double b
     Matrix kernel = Matrix::Zero(n_taus, n_omegas);
     for (int it = 0; it < n_taus; it++) {
         for (int iw = 0 ; iw < n_omegas; iw++) {
-            Scalar val = -domegas[iw]*std::exp(static_cast<Scalar>(beta)*omegas[iw] - taus[it]*omegas[iw])/(1 + std::exp(static_cast<Scalar>(beta)*omegas[iw]));
+            Scalar val = -domegas[iw]*mpfr::exp(static_cast<Scalar>(beta)*omegas[iw] - taus[it]*omegas[iw])/(1 + mpfr::exp(static_cast<Scalar>(beta)*omegas[iw]));
             //logger::log->info("Tau : {}, Omega : {}, K(tau, omega) : {}", taus[it], omegas[iw], val);
             kernel(it, iw) = val;
         }
     }
-    PMatrix pkernel = kernel.cast<PScalar>();
-    PSVD svd = recursive_svd_mp(pkernel, recursion_tolerance);
+    SVD svd = recursive_svd(kernel, recursion_tolerance);
     logger::log->info("Performing direct SVD decomposition (recursion tolerance : {})...", recursion_tolerance);
         //svd = recursive_svd(kernel.cast<LScalar>(), recursion_tolerance);
-    Grid grid { .SVs = svd.SVs.cast<Scalar>(), .U = svd.U.cast<Scalar>(), .V = svd.V.cast<Scalar>(),
+    Grid grid { .SVs = svd.SVs, .U = svd.U, .V = svd.V,
                 .taus = taus, .omegas = omegas, .domegas = domegas,
                 .n_taus = n_taus, .n_omegas = n_omegas, .beta = beta,
                 .kernel = kernel };
@@ -262,9 +255,9 @@ void spm::run_spm(std::string settings_path) {
     double l_max = std::log10(settings.admm_params.lambda_max);
     int N = std::round(l_max - l_min) + 1;
     N = std::round((settings.admm_params.lambda_res - 1)*(N - 1)) + N;
-    Vector lambdas = Vector::LinSpaced(N, l_min, l_max);
+    Vector lambdas = Vector::LinSpaced(N, static_cast<mpfr::mpreal>(l_min), static_cast<mpfr::mpreal>(l_max));
     for (int i = 0 ; i < N; i++) {
-        lambdas(i) = pow(10, lambdas(i));
+        lambdas(i) = mpfr::pow(10, lambdas(i));
     }
     double lambda_opt = 0;
     if (settings.debug.test_convergence) {
@@ -277,13 +270,13 @@ void spm::run_spm(std::string settings_path) {
         } else {
             logger::log->info("Running {} lambda sims", N);
             Vector errors = calculate_lambda_errs(lambdas, green, settings);
-            double a = (errors(errors.size() - 1) - errors(0))/(std::log(lambdas(lambdas.size() - 1)) - std::log(lambdas(0)));
-            double div_max = std::numeric_limits<double>::min();
+            Scalar a = (errors(errors.size() - 1) - errors(0))/(mpfr::log(lambdas(lambdas.size() - 1)) - mpfr::log(lambdas(0)));
+            Scalar div_max = std::numeric_limits<double>::min();
             for (int i = 0 ; i < errors.size(); i++) {
-                double div = a*(std::log(lambdas(i)) - std::log(lambdas(0))) + errors(0);
+                Scalar div = a*(mpfr::log(lambdas(i)) - mpfr::log(lambdas(0))) + errors(0);
                 if (div / errors(i) > div_max) {
                     div_max = div / errors(i);
-                    lambda_opt = lambdas(i);
+                    lambda_opt = static_cast<double>(lambdas(i));
                 }
             }
             logger::log->info("Lambda opt: {}", lambda_opt);
@@ -292,8 +285,17 @@ void spm::run_spm(std::string settings_path) {
         }
 
 
-        Vector spectral = admm_minimize(green, settings, lambda_opt);
-        Vector green_rc = settings.grid.kernel*spectral;
+        Vector rho_prime = admm_minimize(green, settings, lambda_opt);
+        auto grid = settings.grid;
+        Vector SVs = grid.SVs;
+        Matrix U = grid.U;
+        Matrix V = grid.V;
+        int SV_dim = rho_prime.size();
+        SVs.conservativeResize(SV_dim);
+        U.conservativeResize(Eigen::NoChange, SV_dim);
+        V.conservativeResize(Eigen::NoChange, SV_dim);
+        Vector green_rc = U*SVs.asDiagonal()*rho_prime;
+        Vector spectral = V*rho_prime;
         io::save_spectral(settings.output_path, spectral);
         io::save_vector(settings.output_path, green_rc, "green_rc");
     }

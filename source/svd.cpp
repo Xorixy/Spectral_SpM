@@ -18,23 +18,23 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "svd.h"
 
-spm::PMatrix spm::get_j_matrix(int n) {
-    PMatrix J = PMatrix::Zero(n, n);
+spm::Matrix spm::get_j_matrix(int n) {
+    Matrix J = Matrix::Zero(n, n);
     for (int i = 0; i < n; i++) {
-        J(n - i - 1, i) = static_cast<PScalar>(1);
+        J(n - i - 1, i) = static_cast<Scalar>(1);
     }
     return J;
 }
 
-spm::PVector spm::symmetric_linspace(int n, PScalar max, PScalar offset) {
+spm::Vector spm::symmetric_linspace(int n, Scalar max, Scalar offset) {
     if (n <= 1) {
         throw std::invalid_argument("spm::symmetric_linspace: n must be > 1");
     }
     max = mpfr::abs(max);
     int k = n/2;
-    PVector v = PVector::Zero(n);
+    Vector v = Vector::Zero(n);
     for (int i = 0; i < k; i++) {
-        v(i) = max*(static_cast<PScalar>(2*i)/(static_cast<PScalar>(n - 1)) - 1);
+        v(i) = max*(static_cast<Scalar>(2*i)/(static_cast<Scalar>(n - 1)) - 1);
         v(n - i - 1) = -v(i);
         v(i) += offset;
         v(n - i - 1) += offset;
@@ -48,7 +48,7 @@ spm::PVector spm::symmetric_linspace(int n, PScalar max, PScalar offset) {
 
 
 
-spm::PVector spm::test_centrosymmetric() {
+spm::Vector spm::test_centrosymmetric() {
     /*
     Eigen::Matrix3d MX;
     MX << 1,2,3,4,5,6,7,8,9;
@@ -68,10 +68,10 @@ spm::PVector spm::test_centrosymmetric() {
     mpfr::mpreal::set_default_prec(mpfr::digits2bits(100));
     const auto start{std::chrono::steady_clock::now()};
     double tol = -1;
-    PScalar beta = 1.32;
-    PScalar omega_max = 1.56;
-    PScalar sqrt2 = mpfr::sqrt(static_cast<PScalar>(2));
-    PScalar sqrt2inv = static_cast<PScalar>(1)/sqrt2;
+    Scalar beta = 1.32;
+    Scalar omega_max = 1.56;
+    Scalar sqrt2 = mpfr::sqrt(static_cast<Scalar>(2));
+    Scalar sqrt2inv = static_cast<Scalar>(1)/sqrt2;
     int N = 101;
     int M = 101;
     int p = N/2;
@@ -79,19 +79,19 @@ spm::PVector spm::test_centrosymmetric() {
     int q = M/2;
     int b = M % 2;
     logger::log->info("Generating block kernel...");
-    PVector taus = symmetric_linspace(N, beta/2, beta/2);
-    PVector omegas = symmetric_linspace(M, omega_max);
-    PMatrix A = PMatrix::Zero(N, M);
+    Vector taus = symmetric_linspace(N, beta/2, beta/2);
+    Vector omegas = symmetric_linspace(M, omega_max);
+    Matrix A = Matrix::Zero(N, M);
     for (int i = 0; i < N; i++) {
         for (int j = 0 ; j < M ; j++) {
             A(i, j) = -mpfr::exp(-taus(i)*omegas(j))/(1 + mpfr::exp(-beta*omegas(j)));
         }
     }
-    PMatrix Ip = PMatrix::Identity(p, p);
-    PMatrix Iq = PMatrix::Identity(q, q);
-    PMatrix Jp = get_j_matrix(p);
-    PMatrix Jq = get_j_matrix(q);
-    PMatrix U0 = PMatrix::Zero(N, N);
+    Matrix Ip = Matrix::Identity(p, p);
+    Matrix Iq = Matrix::Identity(q, q);
+    Matrix Jp = get_j_matrix(p);
+    Matrix Jq = get_j_matrix(q);
+    Matrix U0 = Matrix::Zero(N, N);
     U0.block(0, 0, p, p) = Ip;
     U0.block(0, p+a, p, p) = Ip;
     U0.block(p+a, 0, p, p) = Jp;
@@ -100,7 +100,7 @@ spm::PVector spm::test_centrosymmetric() {
         U0(p+a-1, p+a-1) = sqrt2;
     }
     U0 *= sqrt2inv;
-    PMatrix V0 = PMatrix::Zero(M, M);
+    Matrix V0 = Matrix::Zero(M, M);
     V0.block(0, 0, q, q) = Iq;
     V0.block(0, q+b, q, q) = Iq;
     V0.block(q+b,0,q,q) = Jq;
@@ -113,8 +113,8 @@ spm::PVector spm::test_centrosymmetric() {
     //std::cout << U0 << "\n\n";
     //std::cout << V0 << "\n\n";
     //std::cout << A_block << "\n\n";
-    PMatrix B1 = PMatrix::Zero(p+a, q+b);
-    PMatrix B2 = PMatrix::Zero(p, q);
+    Matrix B1 = Matrix::Zero(p+a, q+b);
+    Matrix B2 = Matrix::Zero(p, q);
     for (int i = 0 ; i < p ; i++) {
         for (int j = 0 ; j < q ; j++) {
             B1(i,j) = mpfr::sinh(taus(i)*omegas(j))*mpfr::tanh(omegas(j)*beta/2) - mpfr::cosh(taus(i)*omegas(j));
@@ -132,9 +132,9 @@ spm::PVector spm::test_centrosymmetric() {
         }
     }
     if (a == 1 && b == 1) {
-        B1(p+a-1, q+b-1) = static_cast<PScalar>(-0.5);
+        B1(p+a-1, q+b-1) = static_cast<Scalar>(-0.5);
     }
-    PMatrix B = PMatrix::Zero(N, M);
+    Matrix B = Matrix::Zero(N, M);
     B.block(0, 0, p+a, q+b) = B1;
     B.block(p+a, q+b, p, q) = B2;
     //std::cout << A << "\n\n";
@@ -165,7 +165,7 @@ spm::PVector spm::test_centrosymmetric() {
     logger::log->info("Combining SVDs...");
     //std::cout << "B1 - B1 svd :\n" << "\n";
     //std::cout << (B1 - svd_1.U * svd_1.SVs.asDiagonal().toDenseMatrix() * svd_1.V.transpose()) << "\n\n";
-    PMatrix sigma_tilde = PMatrix::Zero(N, M);
+    Matrix sigma_tilde = Matrix::Zero(N, M);
     //std::cout << sigma_tilde << "\n\n";
     //std::cout << svd_1.SVs.asDiagonal().toDenseMatrix() << "\n\n";
     //std::cout << svd_2.SVs.asDiagonal().toDenseMatrix() << "\n\n";
@@ -175,10 +175,10 @@ spm::PVector spm::test_centrosymmetric() {
     sigma_tilde.block(0, 0, lc, lc) = svd_1.SVs.asDiagonal().toDenseMatrix();
     sigma_tilde.block(p+a, q+b, l, l) = svd_2.SVs.asDiagonal().toDenseMatrix();
     //std::cout << sigma_tilde << "\n\n";
-    PMatrix U_c = PMatrix::Zero(N, N);
+    Matrix U_c = Matrix::Zero(N, N);
     U_c.block(0, 0, p+a, p+a) = svd_1.U;
     U_c.block(p+a, p+a, p, p) = svd_2.U;
-    PMatrix V_c = PMatrix::Zero(M, M);
+    Matrix V_c = Matrix::Zero(M, M);
     V_c.block(0, 0, q+b, q+b) = svd_1.V;
     V_c.block(q+b, q+b, q, q) = svd_2.V;
 
@@ -195,11 +195,11 @@ spm::PVector spm::test_centrosymmetric() {
     Eigen::PermutationMatrix<Eigen::Dynamic> V_p2;
     Eigen::VectorXi perm_U = Eigen::VectorXi::LinSpaced(N, 0, N-1);
     Eigen::VectorXi perm_V = Eigen::VectorXi::LinSpaced(M, 0, M-1);
-    PMatrix U_p = PMatrix::Identity(N, N);
-    PMatrix V_p = PMatrix::Identity(M, M);
+    Matrix U_p = Matrix::Identity(N, N);
+    Matrix V_p = Matrix::Identity(M, M);
     if (gap > 0) {
         int perm_dim = gap + p;
-        PMatrix perm = PMatrix::Zero(perm_dim, perm_dim);
+        Matrix perm = Matrix::Zero(perm_dim, perm_dim);
         for (int i = 0; i < perm_dim; i++) {
             perm( i, (perm_dim + i - gap) % perm_dim) = 1;
             perm_U(q + b + (perm_dim + i - gap) % perm_dim) = i + q + b;
@@ -209,7 +209,7 @@ spm::PVector spm::test_centrosymmetric() {
     if (gap < 0) {
         gap = -gap;
         int perm_dim = gap + q;
-        PMatrix perm = PMatrix::Zero(perm_dim, perm_dim);
+        Matrix perm = Matrix::Zero(perm_dim, perm_dim);
         for (int j = 0; j < perm_dim; j++) {
             perm(j,(perm_dim + j - gap) % perm_dim) = 1;
             perm_V(p + a + (perm_dim + j - gap) % perm_dim) = j + p + a;
@@ -222,13 +222,13 @@ spm::PVector spm::test_centrosymmetric() {
     //std::cout << U_p2.toDenseMatrix() << "\n\n";
     //std::cout << V_p << "\n\n";
     //std::cout << V_p2.toDenseMatrix() << "\n\n";
-    PMatrix sigma_prime = U_p.transpose()*sigma_tilde*V_p;
+    Matrix sigma_prime = U_p.transpose()*sigma_tilde*V_p;
     logger::log->info("Done.");
     logger::log->info("Sorting SVs...");
     //std::cout << sigma_prime << "\n\n";
     int L = std::min(N, M);
-    std::vector<std::pair<PScalar, int>> data(L);
-    PVector SVs = PVector::Zero(L);
+    std::vector<std::pair<Scalar, int>> data(L);
+    Vector SVs = Vector::Zero(L);
     for (int i = 0; i < L; i++) {
         data[i] = {sigma_prime(i, i), i};
         //std::cout << data[i].first << ", " << data[i].second << std::endl;
@@ -241,7 +241,7 @@ spm::PVector spm::test_centrosymmetric() {
     }
     logger::log->info("Done.");
     logger::log->info("Constructing sort matrix transforms...");
-    PMatrix sort = PMatrix::Zero(L, L);
+    Matrix sort = Matrix::Zero(L, L);
     Eigen::VectorXi sort_U = Eigen::VectorXi::LinSpaced(N, 0, N-1);
     Eigen::VectorXi sort_V = Eigen::VectorXi::LinSpaced(M, 0, M-1);
     for (int i = 0; i < L; i++) {
@@ -249,9 +249,9 @@ spm::PVector spm::test_centrosymmetric() {
         sort_U(i) = data[i].second;
         sort_V(i) = data[i].second;
     }
-    PMatrix U_s = PMatrix::Identity(N, N);
+    Matrix U_s = Matrix::Identity(N, N);
     U_s.block(0, 0, L, L) = sort;
-    PMatrix V_s = PMatrix::Identity(M, M);
+    Matrix V_s = Matrix::Identity(M, M);
     V_s.block(0, 0, L, L) = sort;
     Eigen::PermutationMatrix<Eigen::Dynamic> U_s2;
     Eigen::PermutationMatrix<Eigen::Dynamic> V_s2;
@@ -264,12 +264,12 @@ spm::PVector spm::test_centrosymmetric() {
     //std::cout << V_s2.toDenseMatrix() << "\n\n";
     logger::log->info("Done.");
     logger::log->info("Finalizing SVD...");
-    PMatrix sigma = U_s.transpose()*sigma_prime*V_s;
+    Matrix sigma = U_s.transpose()*sigma_prime*V_s;
     //std::cout << sigma << std::endl;
     logger::log->info("Calculating U...");
-    PMatrix U = U0*U_c*U_p2*U_s2;
+    Matrix U = U0*U_c*U_p2*U_s2;
     logger::log->info("Calculating V...");
-    PMatrix V = V0*V_c*V_p2*V_s2;
+    Matrix V = V0*V_c*V_p2*V_s2;
     logger::log->info("Calculating sigma...");
     //std::cout << (A - U*sigma*V.transpose()) << "\n\n";
     for (int i = 0 ; i < L ; i++) {
@@ -325,7 +325,7 @@ spm::SVD spm::recursive_svd(const Matrix & A, double tol) {
     return {SVs, U, V};
 }
 
-spm::PSVD spm::recursive_svd_mp(const PMatrix & A, double tol) {
+spm::PSVD spm::recursive_svd_mp(const Matrix & A, double tol) {
     if (tol > 1.0) {
         throw std::invalid_argument("tolerance must be less than 1.0 for recursive_svd");
     }
@@ -349,19 +349,19 @@ spm::PSVD spm::recursive_svd_mp(const PMatrix & A, double tol) {
     }
     logger::log->info("Singular values within tolerance: {}", p);
     logger::log->info("Running recursive step...");
-    PMatrix S_prime = svd.matrixU().transpose()*A*svd.matrixV();
+    Matrix S_prime = svd.matrixU().transpose()*A*svd.matrixV();
     logger::log->info("Matrix S' size : {}, {}", S_prime.rows(), S_prime.cols());
-    PMatrix X = S_prime.block(p, p, (l - p), (l - p));
+    Matrix X = S_prime.block(p, p, (l - p), (l - p));
     logger::log->info("Matrix X size : {}, {}", X.rows(), X.cols());
     PSVD svd_X = recursive_svd_mp(X, tol);
-    PVector SVs = svd.singularValues();
-    PMatrix U_prime = PMatrix::Identity(n, n);
+    Vector SVs = svd.singularValues();
+    Matrix U_prime = Matrix::Identity(n, n);
     U_prime.block(p, p, l-p, l-p) = svd_X.U;
-    PMatrix V_prime = PMatrix::Identity(m, m);
+    Matrix V_prime = Matrix::Identity(m, m);
     V_prime.block(p, p, l-p, l-p) = svd_X.V;
     SVs.tail(l-p) = svd_X.SVs;
-    PMatrix U = svd.matrixU()*U_prime;
-    PMatrix V = svd.matrixV()*V_prime;
+    Matrix U = svd.matrixU()*U_prime;
+    Matrix V = svd.matrixV()*V_prime;
     return {SVs, U, V};
 }
 

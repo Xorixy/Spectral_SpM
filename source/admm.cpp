@@ -32,8 +32,8 @@ spm::Vector spm::positive_projection(const Vector &input) {
 spm::Vector spm::soft_threshold(const Vector &input, double threshold) {
     Vector output(input.size());
     for (int i = 0; i < input.size(); ++i) {
-        double positive = input(i) - threshold;
-        double negative = -input(i) - threshold;
+        Scalar positive = input(i) - threshold;
+        Scalar negative = -input(i) - threshold;
         output(i) = positive * (positive > 0) - negative * (negative > 0);
     }
     return output;
@@ -43,7 +43,7 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
     return admm_minimize(green, settings, settings.admm_params.lambda);
 }
 
-spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings &settings, double lambda) {
+spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings &settings, double lambda_d) {
     auto & grid = settings.grid;
     auto V = grid.V;
     auto SVs = grid.SVs;
@@ -52,15 +52,16 @@ spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings 
 
     int omega_dim = V.rows();
     int SV_dim = 0;
-    double SV_tol = std::abs(SVs(0))*settings.admm_params.sv_tol;
+    auto lambda = static_cast<Scalar>(lambda_d);
+    Scalar SV_tol = mpfr::abs(SVs(0))*settings.admm_params.sv_tol;
     for (int i = 0 ; i < SVs.size(); i++) {
-        if (std::abs(SVs(i)) < SV_tol) {
+        if (mpfr::abs(SVs(i)) < SV_tol) {
             break;
         }
         SV_dim++;
     }
 
-    double sum = -green(0) - green(green.size() - 1);
+    Scalar sum = -green(0) - green(green.size() - 1);
 
     Vector y_prime = U.transpose()*green;
     Vector omega_prime = V.transpose()*domegas;
@@ -90,9 +91,9 @@ spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings 
     }
 
     Vector H_inv = Vector::Zero(SV_dim);
-    double alpha = 0;
+    Scalar alpha = 0;
     for (int i = 0 ; i < SV_dim; i++) {
-        H_inv(i) = 1/(settings.admm_params.mu + settings.admm_params.mu_prime + (SVs(i) * SVs(i)));
+        H_inv(i) = 1/(static_cast<Scalar>(settings.admm_params.mu + settings.admm_params.mu_prime) + (SVs(i) * SVs(i)));
         alpha += omega_prime(i)*omega_prime(i)*H_inv(i);
     }
     alpha = 1/alpha;
@@ -103,10 +104,10 @@ spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings 
     //Let's just try to do the simplest naive implementation
     for (int iter = 0 ; iter < settings.admm_params.max_iters ; iter++) {
         //First we do the x_prime update
-        g = settings.admm_params.mu_prime*(u_prime - z_prime);
-        g += settings.admm_params.mu*(V.transpose()*(u - z));
+        g = static_cast<Scalar>(settings.admm_params.mu_prime)*(u_prime - z_prime);
+        g += static_cast<Scalar>(settings.admm_params.mu)*(V.transpose()*(u - z));
         g -= SVs.asDiagonal()*y_prime;
-        double omegaHinvg = 0;
+        Scalar omegaHinvg = 0;
         for (int i = 0 ; i < SV_dim; i++) {
             omegaHinvg += omega_prime(i)*H_inv(i)*g(i);
         }
@@ -120,11 +121,11 @@ spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings 
         //double integral = x.dot(domegas);
         //logger::log->info("Spectral integral = {}", integral);
         //Not too bad! Then we move on to z_prime
-        double threshold = lambda/(settings.admm_params.mu_prime + (settings.admm_params.mu_prime == 0));
+        Scalar threshold = lambda/(static_cast<Scalar>(settings.admm_params.mu_prime) + (settings.admm_params.mu_prime == 0));
         for (int i = 0 ; i < SV_dim ; i++) {
-            double val = x_prime(i) + u_prime(i);
-            double positive = val - threshold;
-            double negative = -val - threshold;
+            Scalar val = x_prime(i) + u_prime(i);
+            Scalar positive = val - threshold;
+            Scalar negative = -val - threshold;
             z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
         }
         temp = V*x_prime + u;
@@ -133,7 +134,7 @@ spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings 
         }
         u_prime += x_prime - z_prime;
         u += V*x_prime - z;
-        double error = 0;
+        Scalar error = 0;
         for (int i = 0 ; i < SV_dim ; i++) {
             error += (y_prime(i) - SVs(i)*x_prime(i))*(y_prime(i) - SVs(i)*x_prime(i));
         }
@@ -142,24 +143,25 @@ spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings 
     return errors;
 }
 
-spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings, double lambda) {
+spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings, double lambda_d) {
     auto & grid = settings.grid;
     auto V = grid.V;
     auto SVs = grid.SVs;
     auto U = grid.U;
     auto domegas = grid.domegas;
 
+
     int omega_dim = V.rows();
     int SV_dim = 0;
-    double SV_tol = SVs(0)*settings.admm_params.sv_tol;
+    Scalar SV_tol = SVs(0)*settings.admm_params.sv_tol;
     for (int i = 0 ; i < SVs.size(); i++) {
-        if (std::abs(SVs(i)) < SV_tol) {
+        if (SVs(i) < SV_tol) {
             break;
         }
         SV_dim++;
     }
-
-    double sum = -green(0) - green(green.size() - 1);
+    auto lambda = static_cast<Scalar>(lambda_d);
+    Scalar sum = -green(0) - green(green.size() - 1);
 
     Vector y_prime = U.transpose()*green;
     Vector omega_prime = V.transpose()*domegas;
@@ -189,7 +191,109 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
     }
 
     Vector H_inv = Vector::Zero(SV_dim);
-    double alpha = 0;
+    Scalar alpha = 0;
+    for (int i = 0 ; i < SV_dim; i++) {
+        H_inv(i) = 1/(static_cast<Scalar>(settings.admm_params.mu + settings.admm_params.mu_prime) + (SVs(i) * SVs(i)));
+        alpha += omega_prime(i)*omega_prime(i)*H_inv(i);
+    }
+    alpha = 1/alpha;
+    Vector g = Vector::Zero(SV_dim);
+    Vector temp = Vector::Zero(SV_dim);
+    Vector x = Vector::Zero(omega_dim);
+    int fix_sum = settings.admm_params.fix_sum;
+    //logger::log->info("FS : {}", fix_sum);
+    //logger::log->info("Sum : {}", static_cast<double>(sum));
+    //Let's just try to do the simplest naive implementation
+    for (int iter = 0 ; iter < settings.admm_params.max_iters ; iter++) {
+        //First we do the x_prime update
+        g = static_cast<Scalar>(settings.admm_params.mu_prime)*(u_prime - z_prime);
+        g += static_cast<Scalar>(settings.admm_params.mu)*(V.transpose()*(u - z));
+        g -= SVs.asDiagonal()*y_prime;
+        Scalar omegaHinvg = 0;
+        for (int i = 0 ; i < SV_dim; i++) {
+            omegaHinvg += omega_prime(i)*H_inv(i)*g(i);
+        }
+        //double chi_sqr = 0;
+        for (int i = 0 ; i < SV_dim; i++) {
+            x_prime(i) = -H_inv(i)*g(i) + (alpha*H_inv(i)*omega_prime(i)*(sum + omegaHinvg));
+            //chi_sqr += (SVs(i)*x_prime(i) - y_prime(i))*(SVs(i)*x_prime(i) - y_prime(i));
+        }
+        //logger::log->info("Chi_sqr : {}", chi_sqr);
+        //x = V*x_prime;
+        //double integral = x.dot(domegas);
+        //logger::log->info("Spectral integral = {}", integral);
+        //Not too bad! Then we move on to z_prime
+        Scalar threshold = lambda/(static_cast<Scalar>(settings.admm_params.mu_prime) + (settings.admm_params.mu_prime == 0));
+        for (int i = 0 ; i < SV_dim ; i++) {
+            Scalar val = x_prime(i) + u_prime(i);
+            Scalar positive = val - threshold;
+            Scalar negative = -val - threshold;
+            z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
+        }
+        temp = V*x_prime + u;
+        for (int i = 0 ; i < omega_dim ; i++) {
+            z(i) = temp(i)*(temp(i) >= 0);
+        }
+        u_prime += x_prime - z_prime;
+        u += V*x_prime - z;
+        //std::cout << "x_prime:\n";
+        //logger::log->info("Sum : {}", static_cast<double>(omega_prime.dot(x_prime)));
+        //Vector g_rec = U*SVs.asDiagonal()*x_prime;
+        //logger::log->info("Grec start : {}, end : {}, sum : {}", -static_cast<double>(g_rec(0)), -static_cast<double>(g_rec(U.rows()-1)), -static_cast<double>(g_rec(U.rows()-1)+g_rec(0)));
+    }
+    return x_prime;
+}
+
+spm::Vector spm::admm_minimize_mp(const Vector &green, const PGrid & grid, const SPM_settings &settings) {
+    return admm_minimize_mp(green, grid, settings, static_cast<Scalar>(settings.admm_params.lambda));
+}
+
+spm::Vector spm::admm_minimize_mp(const Vector &green, const PGrid & grid, const SPM_settings &settings, Scalar lambda) {
+    auto V = grid.V;
+    auto SVs = grid.SVs;
+    auto U = grid.U;
+    auto domegas = grid.domegas;
+
+    int omega_dim = V.rows();
+    int SV_dim = 0;
+    Scalar SV_tol = SVs(0)*static_cast<Scalar>(settings.admm_params.sv_tol);
+    for(int i = 0; i < SVs.size(); i++) {
+        if(mpfr::abs(SVs(i)) < SV_tol) { break; }
+        SV_dim++;
+    }
+
+    const auto sum = -green(0) - green(green.size() - 1);
+
+    Vector y_prime = U.transpose()*green;
+    Vector omega_prime = V.transpose()*domegas;
+
+    SVs.conservativeResize(SV_dim);
+    U.conservativeResize(Eigen::NoChange, SV_dim);
+    V.conservativeResize(Eigen::NoChange, SV_dim);
+    y_prime.conservativeResize(SV_dim);
+    omega_prime.conservativeResize(SV_dim);
+
+    //std::cout << V.transpose()*V << std::endl;
+
+    Vector x_prime = Vector::Zero(SV_dim);
+    Vector z = Vector::Zero(omega_dim);
+    Vector z_prime = Vector::Zero(SV_dim);
+    Vector u = Vector::Zero(omega_dim);
+    Vector u_prime = Vector::Zero(SV_dim);
+
+    if (settings.admm_params.direct_inversion) {
+        for (int i = 0; i < SV_dim; ++i) {
+            x_prime(i) = y_prime(i)/SVs(i);
+        }
+        //std::cout << U*SVs.asDiagonal()*V.transpose()*V*x_prime << "\n";
+        //std::cout << V*x_prime << "\n";
+        //std::cout << U*SVs.asDiagonal()*V.transpose() << "\n";
+        Vector green_direct = V*x_prime;
+        return green_direct.cast<Scalar>();
+    }
+
+    Vector H_inv = Vector::Zero(SV_dim);
+    Scalar alpha = 0;
     for (int i = 0 ; i < SV_dim; i++) {
         H_inv(i) = 1/(settings.admm_params.mu + settings.admm_params.mu_prime + (SVs(i) * SVs(i)));
         alpha += omega_prime(i)*omega_prime(i)*H_inv(i);
@@ -204,7 +308,7 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
         g = settings.admm_params.mu_prime*(u_prime - z_prime);
         g += settings.admm_params.mu*(V.transpose()*(u - z));
         g -= SVs.asDiagonal()*y_prime;
-        double omegaHinvg = 0;
+        Scalar omegaHinvg = 0;
         for (int i = 0 ; i < SV_dim; i++) {
             omegaHinvg += omega_prime(i)*H_inv(i)*g(i);
         }
@@ -218,11 +322,11 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
         //double integral = x.dot(domegas);
         //logger::log->info("Spectral integral = {}", integral);
         //Not too bad! Then we move on to z_prime
-        double threshold = lambda/(settings.admm_params.mu_prime + (settings.admm_params.mu_prime == 0));
+        Scalar threshold = lambda/(settings.admm_params.mu_prime + (settings.admm_params.mu_prime == 0));
         for (int i = 0 ; i < SV_dim ; i++) {
-            double val = x_prime(i) + u_prime(i);
-            double positive = val - threshold;
-            double negative = -val - threshold;
+            Scalar val = x_prime(i) + u_prime(i);
+            Scalar positive = val - threshold;
+            Scalar negative = -val - threshold;
             z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
         }
         temp = V*x_prime + u;
@@ -232,106 +336,12 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
         u_prime += x_prime - z_prime;
         u += V*x_prime - z;
     }
-    return V*x_prime;
-}
-
-spm::Vector spm::admm_minimize_mp(const PVector &green, const PGrid & grid, const SPM_settings &settings) {
-    return admm_minimize_mp(green, grid, settings, static_cast<PScalar>(settings.admm_params.lambda));
-}
-
-spm::Vector spm::admm_minimize_mp(const PVector &green, const PGrid & grid, const SPM_settings &settings, PScalar lambda) {
-    auto V = grid.V;
-    auto SVs = grid.SVs;
-    auto U = grid.U;
-    auto domegas = grid.domegas;
-
-    int omega_dim = V.rows();
-    int SV_dim = 0;
-    PScalar SV_tol = SVs(0)*static_cast<PScalar>(settings.admm_params.sv_tol);
-    for(int i = 0; i < SVs.size(); i++) {
-        if(mpfr::abs(SVs(i)) < SV_tol) { break; }
-        SV_dim++;
-    }
-
-    const auto sum = -green(0) - green(green.size() - 1);
-
-    PVector y_prime = U.transpose()*green;
-    PVector omega_prime = V.transpose()*domegas;
-
-    SVs.conservativeResize(SV_dim);
-    U.conservativeResize(Eigen::NoChange, SV_dim);
-    V.conservativeResize(Eigen::NoChange, SV_dim);
-    y_prime.conservativeResize(SV_dim);
-    omega_prime.conservativeResize(SV_dim);
-
-    //std::cout << V.transpose()*V << std::endl;
-
-    PVector x_prime = PVector::Zero(SV_dim);
-    PVector z = PVector::Zero(omega_dim);
-    PVector z_prime = PVector::Zero(SV_dim);
-    PVector u = PVector::Zero(omega_dim);
-    PVector u_prime = PVector::Zero(SV_dim);
-
-    if (settings.admm_params.direct_inversion) {
-        for (int i = 0; i < SV_dim; ++i) {
-            x_prime(i) = y_prime(i)/SVs(i);
-        }
-        //std::cout << U*SVs.asDiagonal()*V.transpose()*V*x_prime << "\n";
-        //std::cout << V*x_prime << "\n";
-        //std::cout << U*SVs.asDiagonal()*V.transpose() << "\n";
-        PVector green_direct = V*x_prime;
-        return green_direct.cast<Scalar>();
-    }
-
-    PVector H_inv = PVector::Zero(SV_dim);
-    PScalar alpha = 0;
-    for (int i = 0 ; i < SV_dim; i++) {
-        H_inv(i) = 1/(settings.admm_params.mu + settings.admm_params.mu_prime + (SVs(i) * SVs(i)));
-        alpha += omega_prime(i)*omega_prime(i)*H_inv(i);
-    }
-    alpha = 1/alpha;
-    PVector g = PVector::Zero(SV_dim);
-    PVector temp = PVector::Zero(SV_dim);
-    PVector x = PVector::Zero(omega_dim);
-    //Let's just try to do the simplest naive implementation
-    for (int iter = 0 ; iter < settings.admm_params.max_iters ; iter++) {
-        //First we do the x_prime update
-        g = settings.admm_params.mu_prime*(u_prime - z_prime);
-        g += settings.admm_params.mu*(V.transpose()*(u - z));
-        g -= SVs.asDiagonal()*y_prime;
-        PScalar omegaHinvg = 0;
-        for (int i = 0 ; i < SV_dim; i++) {
-            omegaHinvg += omega_prime(i)*H_inv(i)*g(i);
-        }
-        //double chi_sqr = 0;
-        for (int i = 0 ; i < SV_dim; i++) {
-            x_prime(i) = -H_inv(i)*g(i) + settings.admm_params.fix_sum*(alpha*H_inv(i)*omega_prime(i)*(sum + omegaHinvg));
-            //chi_sqr += (SVs(i)*x_prime(i) - y_prime(i))*(SVs(i)*x_prime(i) - y_prime(i));
-        }
-        //logger::log->info("Chi_sqr : {}", chi_sqr);
-        //x = V*x_prime;
-        //double integral = x.dot(domegas);
-        //logger::log->info("Spectral integral = {}", integral);
-        //Not too bad! Then we move on to z_prime
-        PScalar threshold = lambda/(settings.admm_params.mu_prime + (settings.admm_params.mu_prime == 0));
-        for (int i = 0 ; i < SV_dim ; i++) {
-            PScalar val = x_prime(i) + u_prime(i);
-            PScalar positive = val - threshold;
-            PScalar negative = -val - threshold;
-            z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
-        }
-        temp = V*x_prime + u;
-        for (int i = 0 ; i < omega_dim ; i++) {
-            z(i) = temp(i)*(temp(i) >= 0);
-        }
-        u_prime += x_prime - z_prime;
-        u += V*x_prime - z;
-    }
-    PVector green_return = V*x_prime;
+    Vector green_return = V*x_prime;
     return green_return.cast<Scalar>();
 }
 
-spm::Vector spm::admm_minimize_raw(const Vector & y_prime, const Vector & SVs, const Vector & H_inv, const Vector & omega_prime, const Matrix & V, double alpha, double lambda, double mu, double mu_prime, double sum, bool fix_sum, int max_iter) {
+spm::Vector spm::admm_minimize_raw(const Vector & y_prime, const Vector & SVs, const Vector & H_inv, const Vector & omega_prime, const Matrix & V,
+                                    Scalar alpha, Scalar lambda, Scalar mu, Scalar mu_prime, Scalar sum, bool fix_sum, int max_iter) {
     auto SV_dim = SVs.size();
     auto omega_dim = V.rows();
     Vector x_prime = Vector::Zero(SV_dim);
@@ -347,7 +357,7 @@ spm::Vector spm::admm_minimize_raw(const Vector & y_prime, const Vector & SVs, c
         g = mu_prime*(u_prime - z_prime);
         g += mu*(V.transpose()*(u - z));
         g -= SVs.asDiagonal()*y_prime;
-        double omegaHinvg = 0;
+        Scalar omegaHinvg = 0;
         for (int i = 0 ; i < SV_dim; i++) {
             omegaHinvg += omega_prime(i)*H_inv(i)*g(i);
         }
@@ -361,11 +371,11 @@ spm::Vector spm::admm_minimize_raw(const Vector & y_prime, const Vector & SVs, c
         //double integral = x.dot(domegas);
         //logger::log->info("Spectral integral = {}", integral);
         //Not too bad! Then we move on to z_prime
-        double threshold = lambda/(mu_prime + (mu_prime == 0));
+        Scalar threshold = lambda/(mu_prime + (mu_prime == 0));
         for (int i = 0 ; i < SV_dim ; i++) {
-            double val = x_prime(i) + u_prime(i);
-            double positive = val - threshold;
-            double negative = -val - threshold;
+            Scalar val = x_prime(i) + u_prime(i);
+            Scalar positive = val - threshold;
+            Scalar negative = -val - threshold;
             z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
         }
         temp = V*x_prime + u;
@@ -375,7 +385,7 @@ spm::Vector spm::admm_minimize_raw(const Vector & y_prime, const Vector & SVs, c
         u_prime += x_prime - z_prime;
         u += V*x_prime - z;
     }
-    return V*x_prime;
+    return x_prime;
 }
 
 spm::Vector spm::calculate_lambda_errs(const Vector &lambdas, const Vector & green, SPM_settings &settings) {
@@ -389,15 +399,15 @@ spm::Vector spm::calculate_lambda_errs(const Vector &lambdas, const Vector & gre
 
     int omega_dim = V.rows();
     int SV_dim = 1;
-    double SV_tol = std::abs(SVs(0))*settings.admm_params.sv_tol;
+    Scalar SV_tol = SVs(0)*static_cast<Scalar>(settings.admm_params.sv_tol);
     for (int i = 1 ; i < SVs.size(); i++) {
-        if (std::abs(SVs(i)) < SV_tol) {
+        if (SVs(i) < SV_tol) {
             break;
         }
         SV_dim++;
     }
 
-    double sum = -green(0) - green(green.size() - 1);
+    Scalar sum = -green(0) - green(green.size() - 1);
 
     Vector y_prime = U.transpose()*green;
     Vector omega_prime = V.transpose()*domegas;
@@ -409,7 +419,7 @@ spm::Vector spm::calculate_lambda_errs(const Vector &lambdas, const Vector & gre
     omega_prime.conservativeResize(SV_dim);
 
     Vector H_inv = Vector::Zero(SV_dim);
-    double alpha = 0;
+    Scalar alpha = 0;
     for (int i = 0 ; i < SV_dim; i++) {
         H_inv(i) = 1/(settings.admm_params.mu + settings.admm_params.mu_prime + (SVs(i) * SVs(i)));
         alpha += omega_prime(i)*omega_prime(i)*H_inv(i);
@@ -418,16 +428,17 @@ spm::Vector spm::calculate_lambda_errs(const Vector &lambdas, const Vector & gre
 
 
     for (int i = 0 ; i < lambdas.size() ; i++) {
-        logger::log->info("Calculating lambda errs for {}", lambdas(i));
-        Vector rho = admm_minimize_raw(y_prime, SVs, H_inv, omega_prime, V, alpha, lambdas(i),
-                                settings.admm_params.mu, settings.admm_params.mu_prime, sum, settings.admm_params.fix_sum, settings.admm_params.max_iters);
+        logger::log->info("Calculating lambda errs for {}", static_cast<double>(lambdas(i)));
+        Vector rho_prime = admm_minimize_raw(y_prime, SVs, H_inv, omega_prime, V, alpha, lambdas(i),
+                                static_cast<Scalar>(settings.admm_params.mu), static_cast<Scalar>(settings.admm_params.mu_prime),
+                                sum, settings.admm_params.fix_sum, settings.admm_params.max_iters);
         auto & kernel = settings.grid.kernel;
-        Vector green_rc = kernel*rho;
+        Vector green_rc = U*SVs.asDiagonal()*rho_prime;
         //logger::log->info("kernel dims : {}, {}", kernel.rows(), kernel.cols());
         //logger::log->info("green_rc dims : {}, {}", green_rc.rows(), green_rc.cols());
         //logger::log->info("green dims : {}, {}", greens.rows(), greens.cols());
-        chi_sqr(i) = (green - settings.grid.kernel*rho).squaredNorm()/2;
-        logger::log->info("Chi_sqr : {}", chi_sqr(i));
+        chi_sqr(i) = (green - U*SVs.asDiagonal()*rho_prime).squaredNorm()/2;
+        logger::log->info("Chi_sqr : {}", static_cast<double>(chi_sqr(i)));
     }
     return chi_sqr;
 }

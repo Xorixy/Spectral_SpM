@@ -35,6 +35,8 @@ namespace io {
     void save_green(h5pp::File grid_file, spm::Vector & green);
     void save_green(std::string filename, spm::Vector &green);
     void save_vector(std::string filename, spm::Vector & vector, std::string name);
+    void save_vector(h5pp::File file, spm::Vector & vector, std::string name);
+    void save_matrix(h5pp::File file, spm::Matrix & matrix, std::string name);
     std::pair<spm::Vector, spm::Vector> load_omegas(std::string filename);
     spm::Vector load_spectral(std::string filename);
 

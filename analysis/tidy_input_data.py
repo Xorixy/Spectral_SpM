@@ -74,7 +74,7 @@ def SaveGreen(filename, green, beta):
     f["green"] = green
     f["beta"] = beta
 
-num = 0
+num = 6
 
 type = "fermion"
 prefix = "f"

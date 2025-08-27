@@ -20,16 +20,22 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 void io::save_grid(spm::Grid &grid, h5pp::File grid_file, bool save_svd) {
     if (save_svd) {
-        grid_file.writeDataset(grid.SVs, "SVs");
-        grid_file.writeDataset(grid.U, "U");
-        grid_file.writeDataset(grid.V, "V");
-        grid_file.writeDataset(grid.kernel, "kernel");
+        save_vector(grid_file, grid.SVs, "SVs");
+        save_matrix(grid_file, grid.U, "U");
+        save_matrix(grid_file, grid.V, "V");
+        save_matrix(grid_file, grid.kernel, "kernel");
     }
-    grid_file.writeDataset(grid.taus, "taus");
-    grid_file.writeDataset(grid.omegas, "omegas");
-    grid_file.writeDataset(grid.domegas, "domegas");
+    logger::log->info("Saving taus.");
+    save_vector(grid_file, grid.taus, "taus");
+    logger::log->info("Saving omegas.");
+    save_vector(grid_file, grid.omegas, "omegas");
+    logger::log->info("Saving domegas.");
+    save_vector(grid_file, grid.domegas, "domegas");
+    logger::log->info("Saving n_taus.");
     grid_file.writeDataset(grid.n_taus, "n_taus");
+    logger::log->info("Saving n_omegas.");
     grid_file.writeDataset(grid.n_omegas, "n_omegas");
+    logger::log->info("Saving beta.");
     grid_file.writeDataset(grid.beta, "beta");
 }
 
@@ -53,18 +59,29 @@ spm::Grid io::load_grid(const std::string filename) {
 }
 
 void io::save_spectral(std::string filename, spm::Vector &spectral) {
-    h5pp::File outfile(filename, h5pp::FileAccess::READWRITE);
-    outfile.writeDataset(spectral, "spectral");
+    save_vector(filename, spectral, "spectral");
 }
 
 void io::save_green(std::string filename, spm::Vector &green) {
-    h5pp::File outfile(filename, h5pp::FileAccess::READWRITE);
-    outfile.writeDataset(green, "green");
+   save_vector(filename, green, "green");
 }
 
 void io::save_vector(std::string filename, spm::Vector &vector, std::string name) {
     h5pp::File outfile(filename, h5pp::FileAccess::READWRITE);
-    outfile.writeDataset(vector, name);
+    Eigen::VectorXd dvector = vector.cast<double>();
+    outfile.writeDataset(dvector, name);
+}
+
+void io::save_vector(h5pp::File file, spm::Vector &vector, std::string name) {
+    Eigen::VectorXd dvector = vector.cast<double>();
+    file.writeDataset(dvector, name);
+}
+
+void io::save_matrix(h5pp::File file, spm::Matrix &matrix, std::string name) {
+    fmt::print("hej\n");
+    Eigen::MatrixXd dmatrix = matrix.cast<double>();
+    file.writeDataset(matrix, name);
+    fmt::print("då!\n");
 }
 
 spm::Vector io::load_spectral(std::string filename) {
@@ -85,23 +102,26 @@ std::pair<spm::Vector, double> io::load_greens_function(std::string filename) {
     double beta = green_file.readDataset<double>("beta");
     spm::Vector green = spm::Vector::Zero(green_vec.size());
     for (int i = 0 ; i < green_vec.size(); i++) {
-        green(i) = green_vec[i];
+        green(i) = static_cast<mpfr::mpreal>(green_vec[i]);
     }
     return {green, beta};
 }
 
 
 std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename) {
+    mpfr::mpreal::set_default_prec(mpfr::digits2bits(100));
     logger::log->info("Loading settings from {}", filename);
     std::ifstream f(filename);
     spm::ADMM_params admm;
     spm::DebugSettings debug;
+    Eigen::setNbThreads(10);
     auto j_settings = nlohmann::json::parse(f);
     bool centrosymmetric = false;
     if (std::optional<bool> cs = parse_setting<bool>(j_settings, "centrosymmetric");
         cs.has_value()) {
         centrosymmetric = cs.value();
     }
+
     logger::log->info("Loading Greens function...");
     std::string green_file = parse_setting<std::string>(j_settings, "green_file").value();
     spm::Vector green;
@@ -115,7 +135,7 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
     spm::Grid grid;
     std::string output_path = parse_setting<std::string>(j_settings, "output_file").value();
     if (std::optional<std::string> input_grid_path = parse_setting<std::string>(j_settings, "input_grid_file");
-        input_grid_path.has_value() && (input_grid_path.value() != "")) {
+        input_grid_path.has_value() && (input_grid_path.value() != "" && false)) {
         //If this is true then we load an old grid
         //Otherwise we generate a new one
         logger::log->info("Path to old grid supplied, trying to load it...");
@@ -152,7 +172,7 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
 
     h5pp::File outfile(output_path, h5pp::FileAccess::REPLACE);
     save_grid(grid, outfile, save_svd);
-    outfile.writeDataset(green, "green");
+    save_vector(outfile, green, "green");
     {
         logger::log->info("Loading admm settings...");
         auto j_admm = j_settings["admm"];

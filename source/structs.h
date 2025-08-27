@@ -24,12 +24,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 namespace spm {
-    using Scalar = double;
+    using Scalar = mpfr::mpreal;
     using Matrix = Eigen::Matrix<Scalar, -1, -1>;
     using Vector = Eigen::Vector<Scalar, -1>;
-    using PScalar = mpfr::mpreal;
-    using PMatrix = Eigen::Matrix<PScalar, -1, -1>;
-    using PVector = Eigen::Vector<PScalar, -1>;
 
     struct CSMatrix {
         //This struct contains all the information required to store a centrosymmetric matrix,
@@ -83,19 +80,19 @@ namespace spm {
     };
 
     struct PGrid {
-        PVector SVs;
-        PMatrix U;
-        PMatrix V;
+        Vector SVs;
+        Matrix U;
+        Matrix V;
 
-        PVector taus;
-        PVector omegas;
-        PVector domegas;
+        Vector taus;
+        Vector omegas;
+        Vector domegas;
 
         int n_taus;
         int n_omegas;
-        PScalar beta;
+        Scalar beta;
 
-        PMatrix kernel;
+        Matrix kernel;
     };
 
     struct ADMM_params {
@@ -125,9 +122,9 @@ namespace spm {
         bool centrosymmetric { false };
     };
     struct PSVD {
-        PVector SVs;
-        PMatrix U;
-        PMatrix V;
+        Vector SVs;
+        Matrix U;
+        Matrix V;
     };
     struct SVD {
         Vector SVs;
