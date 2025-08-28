@@ -78,6 +78,8 @@ num = 0
 type = "fermion"
 prefix = "f"
 
+beta, green, taus = TidyData("../data/q50_green_16_small.h5", type=type)
+SaveGreen(f"../data/{prefix}q50h{num}.h5", green, beta)
 beta, green, taus = TidyData("../data/q10_green_16_small.h5", type=type)
 SaveGreen(f"../data/{prefix}q10h{num}.h5", green, beta)
 beta, green, taus = TidyData("../data/q00_green_16_small.h5", type=type)
