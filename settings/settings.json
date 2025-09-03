@@ -1,7 +1,7 @@
 {
-  "omega_min" : -60.0,
-  "omega_max" : 60.0,
-  "n_omegas" : 1000,
+  "omega_min" : -24.0,
+  "omega_max" : 24.0,
+  "n_omegas" : 1001,
   "recursion_tolerance" : -1,
 
 
@@ -9,15 +9,15 @@
 
   "input_grid_file" : "",
   "input_omega_file" : "",
-  "output_file" : "../../results/xxxtest161.h5",
+  "output_file" : "../../results/xxxtest_conv.h5",
 
 
   "save_svd" : false,
 
   "admm" : {
-    "lambda" : 1e-1,
+    "lambda" : 5.6e-6,
     "sv_tol" : 1e-70,
-    "max_iter" : 10000,
+    "max_iter" : 100000,
     "mu" : 100,
     "mu_prime" : 100,
     "fix_sum" : true,
@@ -29,7 +29,7 @@
   },
 
   "debug" : {
-    "test_convergence" : false,
+    "test_convergence" : true,
     "test_spectral" : false,
     "spectral_file" : "../../data/spectral.h5"
   },
