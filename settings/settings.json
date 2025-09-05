@@ -9,7 +9,7 @@
 
   "input_grid_file" : "",
   "input_omega_file" : "",
-  "output_file" : "../../results/fq50h0_spec_2000.h5",
+  "output_file" : "../../results/fq50h0_spec_2000_2.h5",
 
 
   "save_svd" : false,
@@ -17,7 +17,7 @@
   "admm" : {
     "lambda" : 1e-6,
     "sv_tol" : 1e-20,
-    "max_iter" : 20000,
+    "max_iter" : 200000,
     "mu" : 10,
     "mu_prime" : 10,
     "fix_sum" : true,

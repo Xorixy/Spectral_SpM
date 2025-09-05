@@ -78,19 +78,24 @@ def Compare2():
     ax_g.plot(green_rc/green - 1, label="Recursive")
     ax_g.legend()
 def Compare():
-    fig_s, ax_s = plt.subplots()
+    plt.rc('text', usetex=True)
+    plt.rc('text.latex', preamble=r'\usepackage{amsmath}')
+    fig_s, ax_s = plt.subplots(dpi=200)
+    a = 1
     omegas, spectral = GetSpectral("../results/f12h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="β = 1.2")
-    omegas, spectral = GetSpectral("../results/f14h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="β = 1.423")
+    ax_s.plot(omegas, spectral, label="Normal $\\beta = 1.2$", alpha = a)
+    #omegas, spectral = GetSpectral("../results/f14h0_spec_1000.h5")
+    #ax_s.plot(omegas, spectral, label="β = 1.423")
     omegas, spectral = GetSpectral("../results/f16h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="β = 1.635")
-    omegas, spectral = GetSpectral("../results/f17h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="β = 1.75")
+    ax_s.plot(omegas, spectral, label="SCF $\\beta = 1.635$", alpha = a)
+    #omegas, spectral = GetSpectral("../results/f17h0_spec_1000.h5")
+    #ax_s.plot(omegas, spectral, label="β = 1.75")
     omegas, spectral = GetSpectral("../results/f18h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="β = 1.85")
+    ax_s.plot(omegas, spectral, label="SF $\\beta = 1.85$", alpha = a)
+    ax_s.set_xlabel("$\omega$")
+    ax_s.set_ylabel("$A(\omega)$")
     ax_s.legend()
-
+    return
     fig_g, ax_g = plt.subplots()
     taus, green, green_rc = GetGreen("../results/f12h0_spec_1000.h5")
     ax_g.plot(green_rc/green - 1, label="β = 1.2")
@@ -105,17 +110,22 @@ def Compare():
     ax_g.legend()
 
 def CompareQ():
-    fig_s, ax_s = plt.subplots()
+    plt.rc('text', usetex=True)
+    plt.rc('text.latex', preamble=r'\usepackage{amsmath}')
+    fig_s, ax_s = plt.subplots(dpi=200)
+    a = 1
     omegas, spectral = GetSpectral("../results/fq00h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="q = 0.0")
+    ax_s.plot(omegas, spectral, label="$q = 0.0$", alpha = a)
     omegas, spectral = GetSpectral("../results/fq10h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="q = 1.0")
+    ax_s.plot(omegas, spectral, label="$q = 1.0$", alpha = a)
     omegas, spectral = GetSpectral("../results/f16h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="q = 2.5")
+    ax_s.plot(omegas, spectral, label="$q = 2.5$", alpha = a)
     omegas, spectral = GetSpectral("../results/fq50h0_spec_1000.h5")
-    ax_s.plot(omegas, spectral, label="q = 5.0")
+    ax_s.plot(omegas, spectral, label="$q = 5.0$", alpha = a)
+    ax_s.set_xlabel("$\omega$")
+    ax_s.set_ylabel("$A(\omega)$")
     ax_s.legend()
-
+    return
     fig_g, ax_g = plt.subplots()
     taus, green, green_rc = GetGreen("../results/fq00h0_spec_1000.h5")
     ax_g.plot(green_rc/green - 1, label="q = 0.0")
@@ -127,9 +137,9 @@ def CompareQ():
     ax_g.plot(green_rc/green - 1, label="q = 5.0")
     ax_g.legend()
 
-#PlotSpectralRun("../results/fq50h0_spec_2000.h5")
-CompareQ()
-Compare()
+PlotSpectralRun("../results/test16h1_200")
+#CompareQ()
+#Compare()
 plt.show()
 
 
