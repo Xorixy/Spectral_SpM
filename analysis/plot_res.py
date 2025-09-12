@@ -25,17 +25,21 @@ def PlotSpectralRun(filename):
 
     plt.plot(omegas, spectral, label="RC")
     plt.plot(omegas, np.flip(spectral), label="Rev")
+    plt.title("Spectral function")
     plt.legend()
     plt.figure()
     plt.plot(omegas, (spectral - np.abs(spectral))/2)
+    plt.title("Negative parts of spectral function")
     plt.figure()
     plt.plot(taus, green, label="Green sim")
     plt.plot(taus, green_rc, label="Green RC")
     green_p = ReconstructGreen(spectral, omegas, domegas, taus)
     plt.plot(taus, green_p, '--', label="Green Python")
+    plt.title("Green")
     plt.legend()
     plt.figure()
     plt.plot(taus, green_p/green - 1)
+    plt.title("Relative Green diff")
 
     if "lambdas" in f and "errors" in f:
         fig_l, ax_l = plt.subplots()
@@ -148,17 +152,19 @@ def GetGreen(filename):
 
 def Compare2():
     fig_s, ax_s = plt.subplots()
-    omegas, spectral = GetSpectral("../results/xtest_2.h5")
-    ax_s.plot(omegas, spectral, label="Double")
-    omegas, spectral = GetSpectral("../results/xtest_3.h5")
-    ax_s.plot(omegas, spectral, label="MPReal")
+
+    omegas, spectral = GetSpectral("../results/xxxxtest_change_large_mu.h5")
+    ax_s.plot(omegas, spectral, label="Large")
+    omegas, spectral = GetSpectral("../results/xxxxtest_change_mid_mu.h5")
+    ax_s.plot(omegas, spectral, label="Mid")
     ax_s.legend()
 
     fig_g, ax_g = plt.subplots()
-    taus, green, green_rc = GetGreen("../results/xtest_2.h5")
-    ax_g.plot(taus, green_rc/green - 1, label="Double")
-    taus, green, green_rc = GetGreen("../results/xtest_3.h5")
-    ax_g.plot(taus, green_rc/green - 1, label="MPReal")
+    taus, green, green_rc = GetGreen("../results/xxxxtest_change_large_mu.h5")
+    ax_g.plot(taus, green, label="Sim")
+    ax_g.plot(taus, green_rc, label="Large")
+    taus, green, green_rc = GetGreen("../results/xxxxtest_change_mid_mu.h5")
+    ax_g.plot(taus, green_rc, label="Mid")
     ax_g.legend()
 def Compare():
     fig_s, ax_s = plt.subplots()
@@ -188,8 +194,8 @@ def Compare():
     ax_g.legend()
 
 #analyze("../results/f16h0_spec_1000.h5")
-#PlotSpectralRun("../results/f16h0_spec_1000.h5")
-Compare()
+PlotSpectralRun("../results/xxxxtest_16h3_1000.h5")
+#Compare2()
 plt.show()
 
 

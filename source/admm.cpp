@@ -144,6 +144,9 @@ spm::Vector spm::admm_check_convergence(const Vector &green, const SPM_settings 
 }
 
 spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings, double lambda_d) {
+    Eigen::initParallel();
+    omp_set_num_threads(10);
+    logger::log->info("n_threads =  {}", Eigen::nbThreads());
     auto & grid = settings.grid;
     auto V = grid.V;
     auto SVs = grid.SVs;
@@ -179,6 +182,11 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
     Vector z_prime = Vector::Zero(SV_dim);
     Vector u = Vector::Zero(omega_dim);
     Vector u_prime = Vector::Zero(SV_dim);
+    Vector z_diff = Vector::Zero(omega_dim);
+    Vector r = Vector::Zero(omega_dim);
+    Vector r_prime = Vector::Zero(SV_dim);
+    Vector s = Vector::Zero(omega_dim);
+    Vector s_prime = Vector::Zero(SV_dim);
 
     if (settings.admm_params.direct_inversion) {
         for (int i = 0; i < SV_dim; ++i) {
@@ -198,16 +206,19 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
     }
     alpha = 1/alpha;
     Vector g = Vector::Zero(SV_dim);
-    Vector temp = Vector::Zero(SV_dim);
+    Vector temp = Vector::Zero(omega_dim);
     Vector x = Vector::Zero(omega_dim);
     int fix_sum = settings.admm_params.fix_sum;
+
+    auto mu = static_cast<Scalar>(settings.admm_params.mu);
+    auto mu_prime = static_cast<Scalar>(settings.admm_params.mu_prime);
     //logger::log->info("FS : {}", fix_sum);
     //logger::log->info("Sum : {}", static_cast<double>(sum));
     //Let's just try to do the simplest naive implementation
     for (int iter = 0 ; iter < settings.admm_params.max_iters ; iter++) {
         //First we do the x_prime update
-        g = static_cast<Scalar>(settings.admm_params.mu_prime)*(u_prime - z_prime);
-        g += static_cast<Scalar>(settings.admm_params.mu)*(V.transpose()*(u - z));
+        g = mu_prime*(u_prime - z_prime);
+        g += mu*(V.transpose()*(u - z));
         g -= SVs.asDiagonal()*y_prime;
         Scalar omegaHinvg = 0;
         for (int i = 0 ; i < SV_dim; i++) {
@@ -228,14 +239,54 @@ spm::Vector spm::admm_minimize(const Vector &green, const SPM_settings &settings
             Scalar val = x_prime(i) + u_prime(i);
             Scalar positive = val - threshold;
             Scalar negative = -val - threshold;
-            z_prime(i) = positive*(positive > 0) - negative*(negative > 0);
+            auto new_z_i = positive*(positive > 0) - negative*(negative > 0);
+            s_prime(i) = -mu_prime*(new_z_i - z_prime(i));
+            z_prime(i) = new_z_i;
         }
+
         temp = V*x_prime + u;
         for (int i = 0 ; i < omega_dim ; i++) {
-            z(i) = temp(i)*(temp(i) >= 0);
+            auto new_z_i = temp(i)*(temp(i) >= 0);
+            z_diff(i) = new_z_i - z(i);
+            z(i) = new_z_i;
         }
-        u_prime += x_prime - z_prime;
-        u += V*x_prime - z;
+        s = -mu*V.transpose()*z_diff;
+        r_prime = x_prime - z_prime;
+        u_prime += r_prime;
+        r = V*x_prime - z;
+        u += r;
+
+        int change_threshold = 10;
+        Scalar change_up = 1.01;
+        Scalar change_down = 1.01;
+
+        auto r_norm = r.norm();
+        auto r_prime_norm = r_prime.norm();
+        auto s_norm = s.norm();
+        auto s_prime_norm = s_prime.norm();
+
+
+        Scalar mu_change = (change_up - 1) * (r_norm > change_threshold * s_norm) +
+            (static_cast<Scalar>(1)/change_down - 1) * (s_norm > change_threshold * r_norm) + 1;
+        Scalar mu_prime_change = (change_up - 1) * (r_prime_norm > change_threshold * s_prime_norm) +
+            (static_cast<Scalar>(1)/change_down - 1) * (s_prime_norm > change_threshold * r_prime_norm) + 1;
+
+        ///*
+        logger::log->info("Iteration : {}", iter);
+        logger::log->info("s : {}", static_cast<double>(s_norm));
+        logger::log->info("s_prime : {}", static_cast<double>(s_prime_norm));
+        logger::log->info("r : {}", static_cast<double>(r_norm));
+        logger::log->info("r_prime : {}", static_cast<double>(r_prime_norm));
+        logger::log->info("mu_change : {}", static_cast<double>(mu_change));
+        logger::log->info("mu_prime_change : {}", static_cast<double>(mu_prime_change));
+        logger::log->info("mu : {}", static_cast<double>(mu));
+        logger::log->info("mu_prime : {}", static_cast<double>(mu_prime));
+        //*/
+        mu *= mu_change;
+        u /= mu_change;
+        mu_prime *= mu_prime_change;
+        u_prime /= mu_prime_change;
+
         //std::cout << "x_prime:\n";
         //logger::log->info("Sum : {}", static_cast<double>(omega_prime.dot(x_prime)));
         //Vector g_rec = U*SVs.asDiagonal()*x_prime;

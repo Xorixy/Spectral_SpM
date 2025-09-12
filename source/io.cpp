@@ -114,7 +114,6 @@ std::pair<spm::SPM_settings, spm::Vector> io::load_settings(std::string filename
     std::ifstream f(filename);
     spm::ADMM_params admm;
     spm::DebugSettings debug;
-    Eigen::setNbThreads(10);
     auto j_settings = nlohmann::json::parse(f);
     bool centrosymmetric = false;
     if (std::optional<bool> cs = parse_setting<bool>(j_settings, "centrosymmetric");

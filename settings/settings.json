@@ -5,31 +5,31 @@
   "recursion_tolerance" : -1,
 
 
-  "green_file" : "../../data/f16h1.h5",
+  "green_file" : "../../data/f16h3.h5",
 
   "input_grid_file" : "",
   "input_omega_file" : "",
-  "output_file" : "../../results/xxxtest_conv.h5",
+  "output_file" : "../../results/xxxxtest_16h3_1000.h5",
 
 
   "save_svd" : false,
 
   "admm" : {
     "lambda" : 5.6e-6,
-    "sv_tol" : 1e-70,
+    "sv_tol" : 1e-50,
     "max_iter" : 100000,
-    "mu" : 100,
-    "mu_prime" : 100,
+    "mu" : 1,
+    "mu_prime" : 0.03,
     "fix_sum" : true,
     "direct_inversion" : false,
-    "lambda_min" : 1e-6,
-    "lambda_max" : 1e-0,
+    "lambda_min" : 1e-7,
+    "lambda_max" : 1e-4,
     "lambda_res" : 2,
-    "override_lambda_opt" : false
+    "override_lambda_opt" : true
   },
 
   "debug" : {
-    "test_convergence" : true,
+    "test_convergence" : false,
     "test_spectral" : false,
     "spectral_file" : "../../data/spectral.h5"
   },

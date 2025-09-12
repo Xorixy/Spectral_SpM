@@ -197,7 +197,9 @@ spm::Grid spm::generate_centrosymmetric_grid(Vector omegas_d, Vector domegas, in
     logger::log->info("Finalizing SVD...");
     Matrix U = U0*U_c*U_p*U_s;
     Matrix V = V0*V_c*V_p*V_s;
-    Matrix kernel = U*SVs.asDiagonal()*V.transpose();
+    Matrix S = SVs.asDiagonal();
+    S.conservativeResize(U.cols(), V.rows());
+    Matrix kernel = U*S*V.transpose();
     Grid grid = { .SVs = SVs.cast<Scalar>(), .U = U.cast<Scalar>(), .V = V.cast<Scalar>(),
                  .taus = taus.cast<Scalar>(), .omegas = omegas_d, .domegas = domegas,
                  .n_taus = n_taus, .n_omegas = static_cast<int>(omegas_d.size()), .beta = beta_d, .kernel = kernel.cast<Scalar>()};
@@ -299,4 +301,5 @@ void spm::run_spm(std::string settings_path) {
         io::save_spectral(settings.output_path, spectral);
         io::save_vector(settings.output_path, green_rc, "green_rc");
     }
+    logger::log->info("Done");
 }
